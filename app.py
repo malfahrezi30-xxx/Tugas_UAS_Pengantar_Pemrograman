@@ -234,6 +234,7 @@ def admin_login():
 
         if user and user['password'] == hash_password(password):
             session['admin_logged_in'] = True
+            session['admin_id'] = user['id_user']
             session['admin_name'] = user['nama']
             session['admin_username'] = username
             flash(f'Selamat datang, {user["nama"]}!', 'success')
@@ -249,6 +250,53 @@ def admin_logout():
     session.clear()
     flash('Berhasil logout.', 'info')
     return redirect(url_for('admin_login'))
+
+
+@app.route('/admin/pengaturan', methods=['GET', 'POST'])
+@login_required
+def admin_pengaturan():
+    db = get_db()
+    current_username = session.get('admin_username')
+    user = db.execute("SELECT * FROM users WHERE username=?", (current_username,)).fetchone()
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'change_username':
+            new_username = request.form.get('new_username', '').strip()
+            if not new_username or len(new_username) < 3:
+                flash('Username minimal 3 karakter.', 'danger')
+            else:
+                existing = db.execute("SELECT id_user FROM users WHERE username=? AND id_user != ?", 
+                                      (new_username, user['id_user'])).fetchone()
+                if existing:
+                    flash('Username sudah digunakan oleh akun lain.', 'danger')
+                else:
+                    db.execute("UPDATE users SET username=? WHERE id_user=?", (new_username, user['id_user']))
+                    db.commit()
+                    session['admin_username'] = new_username
+                    flash('✅ Username berhasil diperbarui!', 'success')
+                    return redirect(url_for('admin_pengaturan'))
+
+        elif action == 'change_password':
+            old_password = request.form.get('old_password', '')
+            new_password = request.form.get('new_password', '')
+            confirm_password = request.form.get('confirm_password', '')
+
+            if hash_password(old_password) != user['password']:
+                flash('Password lama Anda salah.', 'danger')
+            elif len(new_password) < 6:
+                flash('Password baru minimal 6 karakter.', 'danger')
+            elif new_password != confirm_password:
+                flash('Konfirmasi password baru tidak cocok.', 'danger')
+            else:
+                db.execute("UPDATE users SET password=? WHERE id_user=?", 
+                           (hash_password(new_password), user['id_user']))
+                db.commit()
+                flash('✅ Password berhasil diperbarui!', 'success')
+                return redirect(url_for('admin_pengaturan'))
+
+    return render_template('admin/pengaturan.html', user=user)
 
 
 @app.route('/admin/dashboard')

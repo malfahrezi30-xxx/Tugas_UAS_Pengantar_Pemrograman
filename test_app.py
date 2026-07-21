@@ -198,7 +198,13 @@ class TestSportReserve(unittest.TestCase):
         r = self.client.get('/admin/laporan')
         self.assertEqual(r.status_code, 200)
 
-    def test_24_admin_logout(self):
+    def test_25_admin_pengaturan_get(self):
+        """Halaman pengaturan akun admin harus tampil"""
+        self._login_admin()
+        r = self.client.get('/admin/pengaturan')
+        self.assertEqual(r.status_code, 200)
+
+    def test_26_admin_logout(self):
         """Logout harus berhasil dan redirect ke login"""
         self._login_admin()
         r = self.client.get('/admin/logout', follow_redirects=True)
