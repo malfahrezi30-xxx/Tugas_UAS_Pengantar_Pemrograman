@@ -14,7 +14,11 @@ app.secret_key = 'sportreserve_secret_key_2024'
 # ─── INIT DATABASE ───────────────────────────────────────────────────────────
 @app.before_request
 def setup():
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        # In serverless environments, catch DB init error to prevent total 500 without info
+        app.logger.error(f"Database init error: {e}")
 
 @app.teardown_appcontext
 def close_connection(exception):
@@ -22,6 +26,24 @@ def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
+
+@app.route('/debug-test')
+def debug_test():
+    import sys, traceback
+    info = {
+        'python_version': sys.version,
+        'has_database_url': bool(os.environ.get('DATABASE_URL')),
+    }
+    try:
+        db = get_db()
+        res = db.execute("SELECT COUNT(*) FROM lapangan").fetchone()
+        info['db_status'] = 'OK'
+        info['lapangan_count'] = res[0]
+    except Exception as e:
+        info['db_status'] = 'ERROR'
+        info['error_details'] = str(e)
+        info['traceback'] = traceback.format_exc()
+    return jsonify(info)
 
 # ─── HELPER ──────────────────────────────────────────────────────────────────
 def hash_password(password):
