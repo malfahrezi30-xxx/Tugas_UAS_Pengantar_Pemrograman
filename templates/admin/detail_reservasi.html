@@ -1,0 +1,128 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Detail Reservasi - Admin SportReserve{% endblock %}
+{% block page_title %}Detail Reservasi{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <div>
+        <h2>Detail Reservasi</h2>
+        <p>Kode Booking: <strong>{{ reservasi.kode_booking }}</strong></p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('admin_edit_reservasi', id=reservasi.id_reservasi) }}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{{ url_for('admin_reservasi') }}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Kembali
+        </a>
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div class="detail-main">
+        <!-- STATUS -->
+        <div class="status-banner status-{{ reservasi.status }} mb-4">
+            <div class="status-banner-icon">
+                {% if reservasi.status == 'menunggu' %}<i class="fas fa-clock"></i>
+                {% elif reservasi.status == 'dikonfirmasi' %}<i class="fas fa-check-circle"></i>
+                {% elif reservasi.status == 'selesai' %}<i class="fas fa-flag-checkered"></i>
+                {% else %}<i class="fas fa-times-circle"></i>{% endif %}
+            </div>
+            <div class="status-banner-text">
+                <h3>Status: {{ reservasi.status.title() }}</h3>
+            </div>
+            <div class="status-actions">
+                {% if reservasi.status == 'menunggu' %}
+                <form method="POST" action="{{ url_for('admin_update_status', id=reservasi.id_reservasi, action='konfirmasi') }}" style="display:inline;">
+                    <button class="btn btn-success btn-sm"><i class="fas fa-check"></i> Konfirmasi</button>
+                </form>
+                <form method="POST" action="{{ url_for('admin_update_status', id=reservasi.id_reservasi, action='batalkan') }}"
+                      onsubmit="return confirm('Batalkan reservasi ini?')" style="display:inline;">
+                    <button class="btn btn-danger btn-sm"><i class="fas fa-times"></i> Batalkan</button>
+                </form>
+                {% elif reservasi.status == 'dikonfirmasi' %}
+                <form method="POST" action="{{ url_for('admin_update_status', id=reservasi.id_reservasi, action='selesai') }}" style="display:inline;">
+                    <button class="btn btn-info btn-sm"><i class="fas fa-flag-checkered"></i> Tandai Selesai</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- DETAIL TABLE -->
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3><i class="fas fa-info-circle"></i> Informasi Reservasi</h3>
+            </div>
+            <div class="admin-card-body">
+                <div class="detail-table">
+                    <div class="detail-row">
+                        <span class="detail-key">Kode Booking</span>
+                        <span class="detail-val"><code class="booking-code-small">{{ reservasi.kode_booking }}</code></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Nama Pemesan</span>
+                        <span class="detail-val">{{ reservasi.nama_pemesan }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Nomor HP</span>
+                        <span class="detail-val">{{ reservasi.no_hp }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Lapangan</span>
+                        <span class="detail-val">{{ reservasi.nama_lapangan }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Jenis Olahraga</span>
+                        <span class="detail-val">{{ reservasi.jenis_olahraga }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Lokasi</span>
+                        <span class="detail-val">{{ reservasi.lokasi }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Tanggal</span>
+                        <span class="detail-val">{{ reservasi.tanggal }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-key">Jam</span>
+                        <span class="detail-val">{{ reservasi.jam_mulai }} - {{ reservasi.jam_selesai }} WIB</span>
+                    </div>
+                    <div class="detail-row detail-row-total">
+                        <span class="detail-key">Total Harga</span>
+                        <span class="detail-val price-highlight">Rp {{ "{:,.0f}".format(reservasi.total_harga) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR SIDEBAR -->
+    <div class="detail-sidebar">
+        <div class="admin-card">
+            <div class="admin-card-header text-center">
+                <h3><i class="fas fa-qrcode"></i> QR Code</h3>
+            </div>
+            <div class="admin-card-body text-center">
+                <div class="qr-container">
+                    <img src="data:image/png;base64,{{ qr_data }}" alt="QR Code" class="qr-image">
+                </div>
+                <div class="booking-code-display mt-3">{{ reservasi.kode_booking }}</div>
+            </div>
+        </div>
+        <div class="admin-card mt-3">
+            <div class="admin-card-body">
+                <a href="{{ url_for('admin_edit_reservasi', id=reservasi.id_reservasi) }}" class="btn btn-primary btn-block mb-2">
+                    <i class="fas fa-edit"></i> Edit Reservasi
+                </a>
+                <form method="POST" action="{{ url_for('admin_hapus_reservasi', id=reservasi.id_reservasi) }}"
+                      onsubmit="return confirm('Hapus reservasi secara permanen?')">
+                    <button type="submit" class="btn btn-danger btn-block">
+                        <i class="fas fa-trash"></i> Hapus Reservasi
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

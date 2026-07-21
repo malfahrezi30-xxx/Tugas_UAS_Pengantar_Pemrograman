@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Form Reservasi - SportReserve{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title"><i class="fas fa-calendar-plus"></i> Buat Reservasi</h1>
+        <p class="page-subtitle">Isi data di bawah untuk memesan lapangan olahraga</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="form-layout">
+        <!-- FORM -->
+        <div class="form-main">
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-edit"></i> Data Reservasi</h2>
+                </div>
+                <div class="card-body">
+                    <form id="formReservasi" method="POST" action="{{ url_for('form_reservasi') }}">
+                        <!-- Data Pemesan -->
+                        <div class="form-section">
+                            <h3 class="form-section-title"><i class="fas fa-user"></i> Data Pemesan</h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="nama_pemesan" class="form-label">Nama Lengkap <span class="required">*</span></label>
+                                    <input type="text" id="nama_pemesan" name="nama_pemesan" class="form-control"
+                                           placeholder="Masukkan nama lengkap" required
+                                           value="{{ request.form.get('nama_pemesan', '') }}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="no_hp" class="form-label">Nomor HP <span class="required">*</span></label>
+                                    <input type="tel" id="no_hp" name="no_hp" class="form-control"
+                                           placeholder="08xxxxxxxxxx" required
+                                           value="{{ request.form.get('no_hp', '') }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Data Lapangan -->
+                        <div class="form-section">
+                            <h3 class="form-section-title"><i class="fas fa-map-marker-alt"></i> Data Lapangan & Waktu</h3>
+                            <div class="form-group">
+                                <label for="id_lapangan" class="form-label">Pilih Lapangan <span class="required">*</span></label>
+                                <select id="id_lapangan" name="id_lapangan" class="form-control form-select" required onchange="updateHarga(this)">
+                                    <option value="">-- Pilih Lapangan --</option>
+                                    {% for lp in lapangan_list %}
+                                    <option value="{{ lp.id_lapangan }}"
+                                            data-harga="{{ lp.harga_per_jam }}"
+                                            data-jenis="{{ lp.jenis_olahraga }}"
+                                            data-lokasi="{{ lp.lokasi }}"
+                                            {% if lapangan_id == lp.id_lapangan|string or request.form.get('id_lapangan') == lp.id_lapangan|string %}selected{% endif %}>
+                                        {{ lp.nama_lapangan }} - {{ lp.jenis_olahraga }} (Rp {{ "{:,.0f}".format(lp.harga_per_jam) }}/jam)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div id="lapanganInfo" class="lapangan-info-box" style="display:none;">
+                                <i class="fas fa-info-circle"></i>
+                                <span id="lapanganInfoText"></span>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="tanggal" class="form-label">Tanggal <span class="required">*</span></label>
+                                    <input type="date" id="tanggal" name="tanggal" class="form-control"
+                                           min="{{ today }}" required
+                                           value="{{ request.form.get('tanggal', '') }}"
+                                           onchange="checkAvailability()">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="jam_mulai" class="form-label">Jam Mulai <span class="required">*</span></label>
+                                    <select id="jam_mulai" name="jam_mulai" class="form-control form-select" required onchange="calcTotal()">
+                                        <option value="">-- Pilih Jam --</option>
+                                        {% for h in ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] %}
+                                        <option value="{{ h }}" {% if request.form.get('jam_mulai') == h %}selected{% endif %}>{{ h }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="jam_selesai" class="form-label">Jam Selesai <span class="required">*</span></label>
+                                    <select id="jam_selesai" name="jam_selesai" class="form-control form-select" required onchange="calcTotal()">
+                                        <option value="">-- Pilih Jam --</option>
+                                        {% for h in ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'] %}
+                                        <option value="{{ h }}" {% if request.form.get('jam_selesai') == h %}selected{% endif %}>{{ h }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SUMMARY BOX -->
+                        <div class="summary-box" id="summaryBox" style="display:none;">
+                            <h4><i class="fas fa-receipt"></i> Ringkasan Pemesanan</h4>
+                            <div class="summary-row">
+                                <span>Lapangan</span>
+                                <span id="sumLapangan">-</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Tanggal</span>
+                                <span id="sumTanggal">-</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Jam</span>
+                                <span id="sumJam">-</span>
+                            </div>
+                            <div class="summary-row">
+                                <span>Durasi</span>
+                                <span id="sumDurasi">-</span>
+                            </div>
+                            <div class="summary-row summary-total">
+                                <span>Total Harga</span>
+                                <span id="sumTotal">-</span>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <a href="{{ url_for('daftar_lapangan') }}" class="btn btn-outline">
+                                <i class="fas fa-arrow-left"></i> Kembali
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Buat Reservasi
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="form-sidebar">
+            <div class="card">
+                <div class="card-header">
+                    <h3><i class="fas fa-lightbulb"></i> Panduan Reservasi</h3>
+                </div>
+                <div class="card-body">
+                    <div class="guide-list">
+                        <div class="guide-item">
+                            <div class="guide-num">1</div>
+                            <div>
+                                <strong>Pilih Lapangan</strong>
+                                <p>Pilih lapangan sesuai jenis olahraga yang diinginkan</p>
+                            </div>
+                        </div>
+                        <div class="guide-item">
+                            <div class="guide-num">2</div>
+                            <div>
+                                <strong>Tentukan Waktu</strong>
+                                <p>Pilih tanggal dan jam yang belum terpesan</p>
+                            </div>
+                        </div>
+                        <div class="guide-item">
+                            <div class="guide-num">3</div>
+                            <div>
+                                <strong>Simpan Kode Booking</strong>
+                                <p>Simpan kode booking untuk mengecek status reservasi</p>
+                            </div>
+                        </div>
+                        <div class="guide-item">
+                            <div class="guide-num">4</div>
+                            <div>
+                                <strong>Tunjukkan QR Code</strong>
+                                <p>Tunjukkan QR code saat tiba di lapangan</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card mt-3">
+                <div class="card-body text-center">
+                    <i class="fas fa-headset fa-2x text-primary mb-2"></i>
+                    <h4>Butuh Bantuan?</h4>
+                    <p class="text-muted">Hubungi kami jika ada pertanyaan</p>
+                    <p><i class="fas fa-phone"></i> (021) 1234-5678</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateHarga(sel) {
+    const opt = sel.options[sel.selectedIndex];
+    const info = document.getElementById('lapanganInfo');
+    const infoText = document.getElementById('lapanganInfoText');
+    if (opt.value) {
+        const harga = parseInt(opt.dataset.harga);
+        infoText.textContent = `${opt.dataset.jenis} | ${opt.dataset.lokasi} | Rp ${harga.toLocaleString('id-ID')}/jam`;
+        info.style.display = 'flex';
+    } else {
+        info.style.display = 'none';
+    }
+    calcTotal();
+}
+
+function calcTotal() {
+    const sel = document.getElementById('id_lapangan');
+    const opt = sel.options[sel.selectedIndex];
+    const jMulai = document.getElementById('jam_mulai').value;
+    const jSelesai = document.getElementById('jam_selesai').value;
+    const tanggal = document.getElementById('tanggal').value;
+    const box = document.getElementById('summaryBox');
+
+    if (opt.value && jMulai && jSelesai && tanggal) {
+        const harga = parseInt(opt.dataset.harga);
+        const m = parseInt(jMulai.replace(':',''));
+        const s = parseInt(jSelesai.replace(':',''));
+        if (s > m) {
+            const durasi = (s - m) / 100;
+            const total = durasi * harga;
+            document.getElementById('sumLapangan').textContent = opt.text.split(' (')[0];
+            document.getElementById('sumTanggal').textContent = tanggal;
+            document.getElementById('sumJam').textContent = jMulai + ' - ' + jSelesai;
+            document.getElementById('sumDurasi').textContent = durasi + ' jam';
+            document.getElementById('sumTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
+            box.style.display = 'block';
+        } else {
+            box.style.display = 'none';
+        }
+    } else {
+        box.style.display = 'none';
+    }
+}
+
+function checkAvailability() {
+    calcTotal();
+}
+
+// Init on load if values are pre-filled
+document.addEventListener('DOMContentLoaded', () => {
+    const sel = document.getElementById('id_lapangan');
+    if (sel.value) updateHarga(sel);
+    calcTotal();
+});
+</script>
+{% endblock %}

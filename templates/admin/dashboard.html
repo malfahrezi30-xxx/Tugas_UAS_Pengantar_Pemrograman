@@ -1,0 +1,201 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Dashboard Admin - SportReserve{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- STAT CARDS -->
+<div class="admin-stats-grid">
+    <div class="admin-stat-card stat-blue">
+        <div class="stat-card-icon"><i class="fas fa-map-marker-alt"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">{{ stats.total_lapangan }}</div>
+            <div class="stat-card-label">Total Lapangan</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-green">
+        <div class="stat-card-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">{{ stats.total_reservasi }}</div>
+            <div class="stat-card-label">Total Reservasi</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-yellow">
+        <div class="stat-card-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">{{ stats.reservasi_menunggu }}</div>
+            <div class="stat-card-label">Menunggu Konfirmasi</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-purple">
+        <div class="stat-card-icon"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">Rp {{ "{:,.0f}".format(stats.pendapatan_bulan_ini) }}</div>
+            <div class="stat-card-label">Pendapatan Bulan Ini</div>
+        </div>
+    </div>
+</div>
+
+<!-- STATUS SUMMARY -->
+<div class="admin-status-row">
+    <div class="status-pill status-pill-confirmed">
+        <i class="fas fa-check-circle"></i>
+        <strong>{{ stats.reservasi_dikonfirmasi }}</strong> Dikonfirmasi
+    </div>
+    <div class="status-pill status-pill-today">
+        <i class="fas fa-calendar-day"></i>
+        <strong>{{ stats.reservasi_hari_ini }}</strong> Hari Ini
+    </div>
+    <div class="status-pill status-pill-cancelled">
+        <i class="fas fa-times-circle"></i>
+        <strong>{{ stats.reservasi_dibatalkan }}</strong> Dibatalkan
+    </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="admin-chart-row">
+    <div class="admin-card chart-card">
+        <div class="admin-card-header">
+            <h3><i class="fas fa-chart-line"></i> Reservasi 6 Bulan Terakhir</h3>
+        </div>
+        <div class="admin-card-body">
+            <canvas id="lineChart" height="100"></canvas>
+        </div>
+    </div>
+    <div class="admin-card chart-card">
+        <div class="admin-card-header">
+            <h3><i class="fas fa-chart-pie"></i> Distribusi Jenis Olahraga</h3>
+        </div>
+        <div class="admin-card-body">
+            <canvas id="pieChart" height="100"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- BOTTOM ROW -->
+<div class="admin-chart-row">
+    <!-- TOP LAPANGAN -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3><i class="fas fa-trophy"></i> Lapangan Terpopuler</h3>
+        </div>
+        <div class="admin-card-body">
+            <div class="top-list">
+                {% for lp in top_lapangan %}
+                <div class="top-item">
+                    <div class="top-rank">{{ loop.index }}</div>
+                    <div class="top-info">
+                        <span class="top-name">{{ lp.nama_lapangan }}</span>
+                        <span class="top-sub">{{ lp.jenis_olahraga }}</span>
+                    </div>
+                    <div class="top-count">
+                        <span>{{ lp.total }}</span>
+                        <small>reservasi</small>
+                    </div>
+                    <div class="top-bar-wrap">
+                        <div class="top-bar" style="width: {{ [lp.total * 10, 100] | min }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- RECENT RESERVASI -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3><i class="fas fa-history"></i> Reservasi Terbaru</h3>
+            <a href="{{ url_for('admin_reservasi') }}" class="btn btn-outline btn-sm">Lihat Semua</a>
+        </div>
+        <div class="admin-card-body p-0">
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Nama</th>
+                            <th>Lapangan</th>
+                            <th>Tanggal</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in recent_reservasi %}
+                        <tr>
+                            <td>{{ r.nama_pemesan }}</td>
+                            <td>{{ r.nama_lapangan }}</td>
+                            <td>{{ r.tanggal }}</td>
+                            <td>
+                                <span class="badge badge-{{ 'warning' if r.status=='menunggu' else 'success' if r.status=='dikonfirmasi' else 'info' if r.status=='selesai' else 'danger' }}">
+                                    {{ r.status.title() }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const monthlyData = {{ monthly_data | safe }};
+const jenisData = {{ jenis_data | safe }};
+
+// Line Chart
+const lineCtx = document.getElementById('lineChart').getContext('2d');
+new Chart(lineCtx, {
+    type: 'line',
+    data: {
+        labels: monthlyData.map(d => d.bulan),
+        datasets: [{
+            label: 'Jumlah Reservasi',
+            data: monthlyData.map(d => d.total),
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99,102,241,0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#6366f1',
+            pointRadius: 5,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+            x: { grid: { display: false } }
+        }
+    }
+});
+
+// Pie Chart
+const pieColors = ['#6366f1','#10b981','#f59e0b','#ef4444','#3b82f6','#8b5cf6'];
+const pieCtx = document.getElementById('pieChart').getContext('2d');
+new Chart(pieCtx, {
+    type: 'doughnut',
+    data: {
+        labels: jenisData.map(d => d.jenis_olahraga),
+        datasets: [{
+            data: jenisData.map(d => d.total),
+            backgroundColor: pieColors,
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { padding: 15, font: { size: 12 } } }
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,132 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Manajemen Reservasi - Admin SportReserve{% endblock %}
+{% block page_title %}Manajemen Reservasi{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <div>
+        <h2>Manajemen Reservasi</h2>
+        <p>Kelola semua reservasi lapangan olahraga</p>
+    </div>
+    <a href="{{ url_for('admin_tambah_reservasi') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Tambah Reservasi
+    </a>
+</div>
+
+<!-- FILTER -->
+<div class="admin-card mb-4">
+    <div class="admin-card-body">
+        <form method="GET" class="filter-form">
+            <div class="filter-row">
+                <div class="filter-input">
+                    <input type="text" name="search" class="form-control" placeholder="Cari nama, kode, atau no HP..."
+                           value="{{ search }}">
+                </div>
+                <div class="filter-select">
+                    <select name="status" class="form-control form-select">
+                        <option value="">Semua Status</option>
+                        <option value="menunggu" {% if status_filter == 'menunggu' %}selected{% endif %}>Menunggu</option>
+                        <option value="dikonfirmasi" {% if status_filter == 'dikonfirmasi' %}selected{% endif %}>Dikonfirmasi</option>
+                        <option value="selesai" {% if status_filter == 'selesai' %}selected{% endif %}>Selesai</option>
+                        <option value="dibatalkan" {% if status_filter == 'dibatalkan' %}selected{% endif %}>Dibatalkan</option>
+                    </select>
+                </div>
+                <div class="filter-date">
+                    <input type="date" name="tanggal" class="form-control" value="{{ tanggal_filter }}">
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Cari</button>
+                {% if search or status_filter or tanggal_filter %}
+                <a href="{{ url_for('admin_reservasi') }}" class="btn btn-outline"><i class="fas fa-times"></i> Reset</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABLE -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h3><i class="fas fa-list"></i> Daftar Reservasi ({{ reservasi|length }})</h3>
+    </div>
+    <div class="admin-card-body p-0">
+        {% if reservasi %}
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Kode Booking</th>
+                        <th>Pemesan</th>
+                        <th>Lapangan</th>
+                        <th>Tanggal & Jam</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in reservasi %}
+                    <tr>
+                        <td>
+                            <code class="booking-code-small">{{ r.kode_booking }}</code>
+                        </td>
+                        <td>
+                            <div class="cell-name">{{ r.nama_pemesan }}</div>
+                            <div class="cell-sub"><i class="fas fa-phone"></i> {{ r.no_hp }}</div>
+                        </td>
+                        <td>
+                            <div class="cell-name">{{ r.nama_lapangan }}</div>
+                            <div class="cell-sub">{{ r.jenis_olahraga }}</div>
+                        </td>
+                        <td>
+                            <div class="cell-name">{{ r.tanggal }}</div>
+                            <div class="cell-sub"><i class="fas fa-clock"></i> {{ r.jam_mulai }} - {{ r.jam_selesai }}</div>
+                        </td>
+                        <td class="price-cell">Rp {{ "{:,.0f}".format(r.total_harga) }}</td>
+                        <td>
+                            <span class="badge {{ 'badge-warning' if r.status=='menunggu' else 'badge-success' if r.status=='dikonfirmasi' else 'badge-info' if r.status=='selesai' else 'badge-danger' }}">
+                                {{ r.status.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-btns">
+                                <a href="{{ url_for('admin_detail_reservasi', id=r.id_reservasi) }}" class="btn btn-outline btn-xs" title="Detail">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if r.status == 'menunggu' %}
+                                <form method="POST" action="{{ url_for('admin_update_status', id=r.id_reservasi, action='konfirmasi') }}" style="display:inline;">
+                                    <button class="btn btn-success btn-xs" title="Konfirmasi"><i class="fas fa-check"></i></button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin_update_status', id=r.id_reservasi, action='batalkan') }}"
+                                      onsubmit="return confirm('Batalkan reservasi ini?')" style="display:inline;">
+                                    <button class="btn btn-danger btn-xs" title="Batalkan"><i class="fas fa-times"></i></button>
+                                </form>
+                                {% elif r.status == 'dikonfirmasi' %}
+                                <form method="POST" action="{{ url_for('admin_update_status', id=r.id_reservasi, action='selesai') }}" style="display:inline;">
+                                    <button class="btn btn-info btn-xs" title="Tandai Selesai"><i class="fas fa-flag-checkered"></i></button>
+                                </form>
+                                {% endif %}
+                                <a href="{{ url_for('admin_edit_reservasi', id=r.id_reservasi) }}" class="btn btn-primary btn-xs" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('admin_hapus_reservasi', id=r.id_reservasi) }}"
+                                      onsubmit="return confirm('Hapus reservasi ini secara permanen?')" style="display:inline;">
+                                    <button type="submit" class="btn btn-danger btn-xs" title="Hapus"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-calendar-times fa-3x"></i>
+            <h3>Tidak Ada Reservasi</h3>
+            <p>Belum ada reservasi yang sesuai dengan filter yang dipilih.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Cek Status Reservasi - SportReserve{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title"><i class="fas fa-search"></i> Cek Status Reservasi</h1>
+        <p class="page-subtitle">Masukkan kode booking untuk melihat status reservasi kamu</p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="cek-status-layout">
+        <div class="card cek-status-card">
+            <div class="card-body">
+                <div class="cek-icon">
+                    <i class="fas fa-qrcode"></i>
+                </div>
+                <h2>Cari Reservasi</h2>
+                <p class="text-muted">Masukkan kode booking yang kamu terima saat membuat reservasi</p>
+                <form method="POST" action="{{ url_for('cek_status_post') }}" class="cek-form">
+                    <div class="form-group">
+                        <input type="text" name="kode_booking" class="form-control form-control-lg text-center"
+                               placeholder="Contoh: RSV20240721123456"
+                               style="letter-spacing: 2px; font-weight: 600;"
+                               required autofocus>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block btn-lg">
+                        <i class="fas fa-search"></i> Cek Status
+                    </button>
+                </form>
+                <div class="divider-text"><span>atau</span></div>
+                <a href="{{ url_for('form_reservasi') }}" class="btn btn-outline btn-block">
+                    <i class="fas fa-calendar-plus"></i> Buat Reservasi Baru
+                </a>
+            </div>
+        </div>
+
+        <div class="status-info">
+            <h3>Status Reservasi</h3>
+            <div class="status-legend">
+                <div class="status-legend-item">
+                    <span class="badge badge-warning"><i class="fas fa-clock"></i> Menunggu</span>
+                    <p>Reservasi sudah dibuat, menunggu konfirmasi dari admin</p>
+                </div>
+                <div class="status-legend-item">
+                    <span class="badge badge-success"><i class="fas fa-check-circle"></i> Dikonfirmasi</span>
+                    <p>Reservasi telah dikonfirmasi, kamu bisa datang ke lapangan</p>
+                </div>
+                <div class="status-legend-item">
+                    <span class="badge badge-info"><i class="fas fa-flag-checkered"></i> Selesai</span>
+                    <p>Sesi bermain telah selesai</p>
+                </div>
+                <div class="status-legend-item">
+                    <span class="badge badge-danger"><i class="fas fa-times-circle"></i> Dibatalkan</span>
+                    <p>Reservasi telah dibatalkan</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

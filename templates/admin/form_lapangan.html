@@ -1,0 +1,116 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}{{ 'Tambah' if mode == 'tambah' else 'Edit' }} Lapangan - Admin SportReserve{% endblock %}
+{% block page_title %}{{ 'Tambah' if mode == 'tambah' else 'Edit' }} Lapangan{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <div>
+        <h2>{{ 'Tambah Lapangan Baru' if mode == 'tambah' else 'Edit Lapangan' }}</h2>
+        <p>{{ 'Isi data untuk menambahkan lapangan baru' if mode == 'tambah' else 'Perbarui informasi lapangan' }}</p>
+    </div>
+    <a href="{{ url_for('admin_lapangan') }}" class="btn btn-outline">
+        <i class="fas fa-arrow-left"></i> Kembali
+    </a>
+</div>
+
+<div class="admin-form-layout">
+    <div class="admin-card admin-form-main">
+        <div class="admin-card-header">
+            <h3><i class="fas fa-{{ 'plus' if mode == 'tambah' else 'edit' }}"></i>
+                {{ 'Form Tambah Lapangan' if mode == 'tambah' else 'Form Edit Lapangan' }}
+            </h3>
+        </div>
+        <div class="admin-card-body">
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Nama Lapangan <span class="required">*</span></label>
+                        <input type="text" name="nama_lapangan" class="form-control"
+                               placeholder="Contoh: Lapangan Futsal A"
+                               value="{{ lapangan.nama_lapangan if lapangan else '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Jenis Olahraga <span class="required">*</span></label>
+                        <select name="jenis_olahraga" class="form-control form-select" required>
+                            <option value="">-- Pilih Jenis --</option>
+                            {% for j in jenis_list %}
+                            <option value="{{ j }}" {% if lapangan and lapangan.jenis_olahraga == j %}selected{% endif %}>{{ j }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Lokasi <span class="required">*</span></label>
+                        <input type="text" name="lokasi" class="form-control"
+                               placeholder="Contoh: Gedung Olahraga Lt.1"
+                               value="{{ lapangan.lokasi if lapangan else '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Harga per Jam (Rp) <span class="required">*</span></label>
+                        <input type="number" name="harga_per_jam" class="form-control"
+                               placeholder="Contoh: 100000" min="1" step="1000"
+                               value="{{ lapangan.harga_per_jam | int if lapangan else '' }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-control form-select">
+                            <option value="aktif" {% if not lapangan or lapangan.status == 'aktif' %}selected{% endif %}>Aktif</option>
+                            <option value="tidak aktif" {% if lapangan and lapangan.status == 'tidak aktif' %}selected{% endif %}>Tidak Aktif</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Deskripsi</label>
+                    <textarea name="deskripsi" class="form-control" rows="3"
+                              placeholder="Deskripsi singkat tentang lapangan...">{{ lapangan.deskripsi if lapangan and lapangan.deskripsi else '' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Fasilitas</label>
+                    <input type="text" name="fasilitas" class="form-control"
+                           placeholder="Contoh: AC, Ruang Ganti, Toilet, Parkir (pisahkan dengan koma)"
+                           value="{{ lapangan.fasilitas if lapangan and lapangan.fasilitas else '' }}">
+                    <small class="form-hint">Pisahkan setiap fasilitas dengan tanda koma (,)</small>
+                </div>
+
+                <div class="form-actions">
+                    <a href="{{ url_for('admin_lapangan') }}" class="btn btn-outline">Batal</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i>
+                        {{ 'Simpan Lapangan' if mode == 'tambah' else 'Perbarui Lapangan' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if mode == 'edit' and lapangan %}
+    <div class="admin-form-sidebar">
+        <div class="admin-card">
+            <div class="admin-card-header">
+                <h3><i class="fas fa-info-circle"></i> Info Lapangan</h3>
+            </div>
+            <div class="admin-card-body">
+                <div class="info-list">
+                    <div class="info-list-item">
+                        <span class="info-list-label">ID Lapangan</span>
+                        <span class="info-list-value">#{{ lapangan.id_lapangan }}</span>
+                    </div>
+                    <div class="info-list-item">
+                        <span class="info-list-label">Dibuat</span>
+                        <span class="info-list-value">{{ lapangan.created_at[:10] if lapangan.created_at else '-' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Daftar Lapangan - SportReserve{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title"><i class="fas fa-th-large"></i> Daftar Lapangan</h1>
+        <p class="page-subtitle">Temukan lapangan olahraga yang sesuai kebutuhan kamu</p>
+    </div>
+</div>
+
+<div class="container">
+    <!-- FILTER -->
+    <div class="filter-bar">
+        <div class="filter-sports">
+            <a href="{{ url_for('daftar_lapangan') }}" class="filter-btn {% if not jenis_filter %}active{% endif %}">
+                <i class="fas fa-border-all"></i> Semua
+            </a>
+            {% for jenis in jenis_list %}
+            <a href="{{ url_for('daftar_lapangan', jenis=jenis) }}" class="filter-btn {% if jenis_filter == jenis %}active{% endif %}">
+                {% if jenis == 'Futsal' %}<i class="fas fa-futbol"></i>
+                {% elif jenis == 'Badminton' %}<i class="fas fa-table-tennis"></i>
+                {% elif jenis == 'Basket' %}<i class="fas fa-basketball-ball"></i>
+                {% elif jenis == 'Voli' %}<i class="fas fa-volleyball-ball"></i>
+                {% elif jenis == 'Tenis' %}<i class="fas fa-baseball-ball"></i>
+                {% elif jenis == 'Renang' %}<i class="fas fa-swimming-pool"></i>
+                {% endif %}
+                {{ jenis }}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- RESULTS INFO -->
+    <div class="results-info">
+        <p>
+            {% if jenis_filter %}
+            Menampilkan <strong>{{ lapangan|length }}</strong> lapangan <strong>{{ jenis_filter }}</strong>
+            {% else %}
+            Menampilkan <strong>{{ lapangan|length }}</strong> lapangan tersedia
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- LAPANGAN GRID -->
+    {% if lapangan %}
+    <div class="lapangan-grid">
+        {% for lp in lapangan %}
+        <div class="lapangan-card">
+            <div class="lapangan-card-header">
+                <div class="lapangan-badge">{{ lp.jenis_olahraga }}</div>
+                <div class="lapangan-status status-aktif">Tersedia</div>
+            </div>
+            <div class="lapangan-card-body">
+                <h3>{{ lp.nama_lapangan }}</h3>
+                <p class="lapangan-lokasi"><i class="fas fa-map-marker-alt"></i> {{ lp.lokasi }}</p>
+                {% if lp.deskripsi %}
+                <p class="lapangan-desc">{{ lp.deskripsi[:100] }}{% if lp.deskripsi|length > 100 %}...{% endif %}</p>
+                {% endif %}
+                {% if lp.fasilitas %}
+                <div class="fasilitas-list">
+                    {% for f in lp.fasilitas.split(',') %}
+                    <span class="fasilitas-tag"><i class="fas fa-check"></i> {{ f.strip() }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="lapangan-card-footer">
+                <div class="lapangan-harga">
+                    <span class="harga-label">per jam</span>
+                    <span class="harga-value">Rp {{ "{:,.0f}".format(lp.harga_per_jam) }}</span>
+                </div>
+                <div class="lapangan-actions">
+                    <a href="{{ url_for('detail_lapangan', id=lp.id_lapangan) }}" class="btn btn-outline btn-sm">
+                        <i class="fas fa-info-circle"></i> Detail
+                    </a>
+                    <a href="{{ url_for('form_reservasi', lapangan_id=lp.id_lapangan) }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-calendar-plus"></i> Pesan
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon"><i class="fas fa-search"></i></div>
+        <h3>Lapangan Tidak Ditemukan</h3>
+        <p>Tidak ada lapangan {{ jenis_filter }} yang tersedia saat ini.</p>
+        <a href="{{ url_for('daftar_lapangan') }}" class="btn btn-primary">Lihat Semua Lapangan</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

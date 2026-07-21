@@ -1,0 +1,211 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Laporan Bulanan - Admin SportReserve{% endblock %}
+{% block page_title %}Laporan Bulanan{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <div>
+        <h2>Laporan Bulanan</h2>
+        <p>Ringkasan reservasi dan pendapatan per bulan</p>
+    </div>
+</div>
+
+<!-- FILTER BULAN -->
+<div class="admin-card mb-4">
+    <div class="admin-card-body">
+        <form method="GET" class="filter-form">
+            <div class="filter-row">
+                <div class="filter-input">
+                    <label class="form-label mb-1">Pilih Bulan</label>
+                    <input type="month" name="bulan" class="form-control" value="{{ bulan }}">
+                </div>
+                <div style="display:flex; align-items: flex-end;">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Tampilkan</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- RINGKASAN CARDS -->
+<div class="admin-stats-grid">
+    <div class="admin-stat-card stat-blue">
+        <div class="stat-card-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">{{ ringkasan.total }}</div>
+            <div class="stat-card-label">Total Reservasi</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-green">
+        <div class="stat-card-icon"><i class="fas fa-check-circle"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">{{ ringkasan.dikonfirmasi + ringkasan.selesai }}</div>
+            <div class="stat-card-label">Berhasil</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-yellow">
+        <div class="stat-card-icon"><i class="fas fa-clock"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">{{ ringkasan.menunggu }}</div>
+            <div class="stat-card-label">Menunggu</div>
+        </div>
+    </div>
+    <div class="admin-stat-card stat-purple">
+        <div class="stat-card-icon"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="stat-card-body">
+            <div class="stat-card-value">Rp {{ "{:,.0f}".format(ringkasan.pendapatan) }}</div>
+            <div class="stat-card-label">Total Pendapatan</div>
+        </div>
+    </div>
+</div>
+
+<div class="admin-chart-row">
+    <!-- CHART HARIAN -->
+    <div class="admin-card chart-card">
+        <div class="admin-card-header">
+            <h3><i class="fas fa-chart-bar"></i> Reservasi per Hari</h3>
+        </div>
+        <div class="admin-card-body">
+            <canvas id="barChart" height="120"></canvas>
+        </div>
+    </div>
+
+    <!-- PER LAPANGAN -->
+    <div class="admin-card">
+        <div class="admin-card-header">
+            <h3><i class="fas fa-map-marker-alt"></i> Per Lapangan</h3>
+        </div>
+        <div class="admin-card-body p-0">
+            <div class="table-responsive">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Lapangan</th>
+                            <th>Jenis</th>
+                            <th>Total</th>
+                            <th>Pendapatan</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lp in per_lapangan %}
+                        <tr>
+                            <td>{{ lp.nama_lapangan }}</td>
+                            <td><span class="badge badge-sport">{{ lp.jenis_olahraga }}</span></td>
+                            <td><strong>{{ lp.total }}</strong></td>
+                            <td class="price-cell">Rp {{ "{:,.0f}".format(lp.pendapatan) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DATA TABLE -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h3><i class="fas fa-list"></i> Detail Reservasi Bulan {{ bulan }} ({{ laporan_bulan|length }})</h3>
+    </div>
+    <div class="admin-card-body p-0">
+        {% if laporan_bulan %}
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Kode</th>
+                        <th>Nama</th>
+                        <th>Lapangan</th>
+                        <th>Tanggal</th>
+                        <th>Jam</th>
+                        <th>Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in laporan_bulan %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><code class="booking-code-small">{{ r.kode_booking }}</code></td>
+                        <td>{{ r.nama_pemesan }}</td>
+                        <td>{{ r.nama_lapangan }}</td>
+                        <td>{{ r.tanggal }}</td>
+                        <td>{{ r.jam_mulai }}-{{ r.jam_selesai }}</td>
+                        <td class="price-cell">Rp {{ "{:,.0f}".format(r.total_harga) }}</td>
+                        <td>
+                            <span class="badge {{ 'badge-warning' if r.status=='menunggu' else 'badge-success' if r.status=='dikonfirmasi' else 'badge-info' if r.status=='selesai' else 'badge-danger' }}">
+                                {{ r.status.title() }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-foot">
+                        <td colspan="6"><strong>Total Pendapatan</strong></td>
+                        <td class="price-cell"><strong>Rp {{ "{:,.0f}".format(ringkasan.pendapatan) }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-chart-bar fa-3x"></i>
+            <h3>Tidak Ada Data</h3>
+            <p>Belum ada reservasi pada bulan {{ bulan }}.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const perHari = {{ per_hari | safe }};
+const barCtx = document.getElementById('barChart').getContext('2d');
+new Chart(barCtx, {
+    type: 'bar',
+    data: {
+        labels: perHari.map(d => d.tanggal.slice(8)), // show day number
+        datasets: [
+            {
+                label: 'Jumlah Reservasi',
+                data: perHari.map(d => d.total),
+                backgroundColor: 'rgba(99,102,241,0.7)',
+                borderColor: '#6366f1',
+                borderWidth: 1,
+                borderRadius: 4,
+                yAxisID: 'y'
+            },
+            {
+                label: 'Pendapatan (Rp)',
+                data: perHari.map(d => d.pendapatan),
+                type: 'line',
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16,185,129,0.1)',
+                borderWidth: 2,
+                tension: 0.4,
+                fill: false,
+                yAxisID: 'y1'
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, title: { display: true, text: 'Reservasi' } },
+            y1: { beginAtZero: true, position: 'right', grid: { display: false }, title: { display: true, text: 'Pendapatan (Rp)' } },
+            x: { grid: { display: false }, title: { display: true, text: 'Tanggal' } }
+        }
+    }
+});
+</script>
+{% endblock %}

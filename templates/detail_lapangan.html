@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ lapangan.nama_lapangan }} - SportReserve{% endblock %}
+
+{% block extra_css %}
+<style>
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.calendar-slot { padding: 4px 6px; border-radius: 6px; font-size: 0.75rem; text-align: center; cursor: pointer; border: 1px solid #e2e8f0; transition: all .2s; }
+.calendar-slot.booked { background: #fee2e2; border-color: #fca5a5; color: #dc2626; cursor: not-allowed; }
+.calendar-slot.available { background: #dcfce7; border-color: #86efac; color: #16a34a; }
+.calendar-slot.selected { background: var(--primary); border-color: var(--primary); color: white; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="{{ url_for('index') }}">Beranda</a>
+            <i class="fas fa-chevron-right"></i>
+            <a href="{{ url_for('daftar_lapangan') }}">Lapangan</a>
+            <i class="fas fa-chevron-right"></i>
+            <span>{{ lapangan.nama_lapangan }}</span>
+        </nav>
+        <h1 class="page-title">{{ lapangan.nama_lapangan }}</h1>
+    </div>
+</div>
+
+<div class="container">
+    <div class="detail-grid">
+        <!-- LEFT COLUMN -->
+        <div class="detail-main">
+            <!-- INFO CARD -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-info-circle"></i> Informasi Lapangan</h2>
+                    <span class="badge badge-sport">{{ lapangan.jenis_olahraga }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label"><i class="fas fa-map-marker-alt"></i> Lokasi</span>
+                            <span class="info-value">{{ lapangan.lokasi }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label"><i class="fas fa-tag"></i> Harga per Jam</span>
+                            <span class="info-value price-highlight">Rp {{ "{:,.0f}".format(lapangan.harga_per_jam) }}</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label"><i class="fas fa-circle"></i> Status</span>
+                            <span class="info-value">
+                                <span class="badge badge-success">{{ lapangan.status.title() }}</span>
+                            </span>
+                        </div>
+                    </div>
+                    {% if lapangan.deskripsi %}
+                    <div class="mt-3">
+                        <h4>Deskripsi</h4>
+                        <p class="text-muted">{{ lapangan.deskripsi }}</p>
+                    </div>
+                    {% endif %}
+                    {% if lapangan.fasilitas %}
+                    <div class="mt-3">
+                        <h4>Fasilitas</h4>
+                        <div class="fasilitas-list">
+                            {% for f in lapangan.fasilitas.split(',') %}
+                            <span class="fasilitas-tag"><i class="fas fa-check-circle"></i> {{ f.strip() }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- JADWAL CARD -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h2><i class="fas fa-calendar-alt"></i> Ketersediaan Jadwal (7 Hari ke Depan)</h2>
+                </div>
+                <div class="card-body">
+                    <div id="jadwalContainer" data-jadwal="{{ jadwal }}">
+                        <div class="jadwal-tabs" id="jadwalTabs"></div>
+                        <div class="jadwal-legend">
+                            <span class="legend-item"><span class="legend-dot dot-available"></span> Tersedia</span>
+                            <span class="legend-item"><span class="legend-dot dot-booked"></span> Terpesan</span>
+                        </div>
+                        <div class="jadwal-slots" id="jadwalSlots"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="detail-sidebar">
+            <div class="card sticky-card">
+                <div class="card-body">
+                    <div class="price-box">
+                        <span class="price-amount">Rp {{ "{:,.0f}".format(lapangan.harga_per_jam) }}</span>
+                        <span class="price-unit">/ jam</span>
+                    </div>
+                    <p class="text-center text-muted mb-3">Lapangan tersedia dan siap dipesan</p>
+                    <a href="{{ url_for('form_reservasi', lapangan_id=lapangan.id_lapangan) }}" class="btn btn-primary btn-block">
+                        <i class="fas fa-calendar-plus"></i> Reservasi Sekarang
+                    </a>
+                    <a href="{{ url_for('daftar_lapangan') }}" class="btn btn-outline btn-block mt-2">
+                        <i class="fas fa-arrow-left"></i> Kembali ke Daftar
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const jadwal = {{ jadwal | safe }};
+    const hours = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+    const dates = Object.keys(jadwal);
+
+    const tabs = document.getElementById('jadwalTabs');
+    const slotsDiv = document.getElementById('jadwalSlots');
+
+    function formatDate(isoDate) {
+        const d = new Date(isoDate + 'T00:00:00');
+        const days = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+        return days[d.getDay()] + ', ' + d.getDate() + '/' + (d.getMonth()+1);
+    }
+
+    function isBooked(date, hour) {
+        const slots = jadwal[date] || [];
+        return slots.some(s => s.jam_mulai <= hour && s.jam_selesai > hour);
+    }
+
+    function renderSlots(date) {
+        slotsDiv.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'slots-grid';
+        hours.forEach(h => {
+            const slot = document.createElement('div');
+            const booked = isBooked(date, h);
+            slot.className = 'time-slot ' + (booked ? 'slot-booked' : 'slot-available');
+            slot.innerHTML = `<i class="fas fa-${booked ? 'lock' : 'unlock-alt'}"></i><span>${h}</span>`;
+            grid.appendChild(slot);
+        });
+        slotsDiv.appendChild(grid);
+    }
+
+    dates.forEach((d, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'jadwal-tab' + (i === 0 ? ' active' : '');
+        btn.textContent = formatDate(d);
+        btn.onclick = () => {
+            document.querySelectorAll('.jadwal-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderSlots(d);
+        };
+        tabs.appendChild(btn);
+    });
+
+    if (dates.length > 0) renderSlots(dates[0]);
+})();
+</script>
+{% endblock %}

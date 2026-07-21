@@ -1,0 +1,113 @@
+{% extends 'admin/base_admin.html' %}
+
+{% block title %}Manajemen Lapangan - Admin SportReserve{% endblock %}
+{% block page_title %}Manajemen Lapangan{% endblock %}
+
+{% block content %}
+<div class="admin-page-header">
+    <div>
+        <h2>Manajemen Lapangan</h2>
+        <p>Kelola data lapangan olahraga</p>
+    </div>
+    <a href="{{ url_for('admin_tambah_lapangan') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Tambah Lapangan
+    </a>
+</div>
+
+<!-- FILTER -->
+<div class="admin-card mb-4">
+    <div class="admin-card-body">
+        <form method="GET" class="filter-form">
+            <div class="filter-row">
+                <div class="filter-input">
+                    <input type="text" name="search" class="form-control" placeholder="Cari nama atau lokasi..." value="{{ search }}">
+                </div>
+                <div class="filter-select">
+                    <select name="jenis" class="form-control form-select">
+                        <option value="">Semua Jenis</option>
+                        {% for j in jenis_list %}
+                        <option value="{{ j }}" {% if jenis_filter == j %}selected{% endif %}>{{ j }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Cari</button>
+                {% if search or jenis_filter %}
+                <a href="{{ url_for('admin_lapangan') }}" class="btn btn-outline"><i class="fas fa-times"></i> Reset</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TABLE -->
+<div class="admin-card">
+    <div class="admin-card-header">
+        <h3><i class="fas fa-list"></i> Daftar Lapangan ({{ lapangan|length }})</h3>
+    </div>
+    <div class="admin-card-body p-0">
+        {% if lapangan %}
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Nama Lapangan</th>
+                        <th>Jenis</th>
+                        <th>Lokasi</th>
+                        <th>Harga/Jam</th>
+                        <th>Status</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lp in lapangan %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>
+                            <div class="cell-name">{{ lp.nama_lapangan }}</div>
+                            {% if lp.fasilitas %}
+                            <div class="cell-sub">{{ lp.fasilitas[:50] }}{% if lp.fasilitas|length > 50 %}...{% endif %}</div>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge badge-sport">{{ lp.jenis_olahraga }}</span></td>
+                        <td>{{ lp.lokasi }}</td>
+                        <td class="price-cell">Rp {{ "{:,.0f}".format(lp.harga_per_jam) }}</td>
+                        <td>
+                            <span class="badge {{ 'badge-success' if lp.status == 'aktif' else 'badge-danger' }}">
+                                {{ lp.status.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-btns">
+                                <a href="{{ url_for('detail_lapangan', id=lp.id_lapangan) }}" class="btn btn-outline btn-xs" target="_blank" title="Lihat Detail">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('admin_edit_lapangan', id=lp.id_lapangan) }}" class="btn btn-primary btn-xs" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('admin_hapus_lapangan', id=lp.id_lapangan) }}"
+                                      onsubmit="return confirm('Hapus lapangan {{ lp.nama_lapangan }}?')">
+                                    <button type="submit" class="btn btn-danger btn-xs" title="Hapus">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-map-marker-alt fa-3x"></i>
+            <h3>Belum Ada Lapangan</h3>
+            <p>Tambahkan lapangan baru untuk mulai menerima reservasi.</p>
+            <a href="{{ url_for('admin_tambah_lapangan') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Tambah Lapangan
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

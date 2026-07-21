@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}Status Reservasi {{ reservasi.kode_booking }} - SportReserve{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="container">
+        <h1 class="page-title"><i class="fas fa-ticket-alt"></i> Detail Reservasi</h1>
+        <p class="page-subtitle">Kode Booking: <strong>{{ reservasi.kode_booking }}</strong></p>
+    </div>
+</div>
+
+<div class="container">
+    <div class="status-detail-layout">
+        <!-- MAIN INFO -->
+        <div class="status-main">
+            <!-- STATUS BANNER -->
+            <div class="status-banner status-{{ reservasi.status }}">
+                <div class="status-banner-icon">
+                    {% if reservasi.status == 'menunggu' %}<i class="fas fa-clock"></i>
+                    {% elif reservasi.status == 'dikonfirmasi' %}<i class="fas fa-check-circle"></i>
+                    {% elif reservasi.status == 'selesai' %}<i class="fas fa-flag-checkered"></i>
+                    {% else %}<i class="fas fa-times-circle"></i>{% endif %}
+                </div>
+                <div class="status-banner-text">
+                    <h2>
+                        {% if reservasi.status == 'menunggu' %}Menunggu Konfirmasi
+                        {% elif reservasi.status == 'dikonfirmasi' %}Reservasi Dikonfirmasi
+                        {% elif reservasi.status == 'selesai' %}Selesai
+                        {% else %}Reservasi Dibatalkan{% endif %}
+                    </h2>
+                    <p>
+                        {% if reservasi.status == 'menunggu' %}Reservasi kamu sedang diproses. Silakan tunggu konfirmasi dari admin.
+                        {% elif reservasi.status == 'dikonfirmasi' %}Reservasi telah dikonfirmasi! Silakan datang ke lapangan sesuai jadwal.
+                        {% elif reservasi.status == 'selesai' %}Terima kasih telah menggunakan layanan kami!
+                        {% else %}Maaf, reservasi ini telah dibatalkan.{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <!-- DETAIL RESERVASI -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3><i class="fas fa-info-circle"></i> Detail Pemesanan</h3>
+                </div>
+                <div class="card-body">
+                    <div class="detail-table">
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-hashtag"></i> Kode Booking</span>
+                            <span class="detail-val booking-code">{{ reservasi.kode_booking }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-user"></i> Nama Pemesan</span>
+                            <span class="detail-val">{{ reservasi.nama_pemesan }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-phone"></i> Nomor HP</span>
+                            <span class="detail-val">{{ reservasi.no_hp }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-running"></i> Jenis Olahraga</span>
+                            <span class="detail-val">{{ reservasi.jenis_olahraga }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-map-marker-alt"></i> Lapangan</span>
+                            <span class="detail-val">{{ reservasi.nama_lapangan }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-building"></i> Lokasi</span>
+                            <span class="detail-val">{{ reservasi.lokasi }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-calendar"></i> Tanggal</span>
+                            <span class="detail-val">{{ reservasi.tanggal }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-key"><i class="fas fa-clock"></i> Waktu</span>
+                            <span class="detail-val">{{ reservasi.jam_mulai }} - {{ reservasi.jam_selesai }} WIB</span>
+                        </div>
+                        <div class="detail-row detail-row-total">
+                            <span class="detail-key"><i class="fas fa-money-bill-wave"></i> Total Harga</span>
+                            <span class="detail-val price-highlight">Rp {{ "{:,.0f}".format(reservasi.total_harga) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons mt-4">
+                <a href="{{ url_for('cek_status') }}" class="btn btn-outline">
+                    <i class="fas fa-arrow-left"></i> Cek Kode Lain
+                </a>
+                <a href="{{ url_for('form_reservasi') }}" class="btn btn-primary">
+                    <i class="fas fa-calendar-plus"></i> Buat Reservasi Baru
+                </a>
+            </div>
+        </div>
+
+        <!-- QR CODE SIDEBAR -->
+        <div class="status-sidebar">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h3><i class="fas fa-qrcode"></i> QR Code</h3>
+                </div>
+                <div class="card-body text-center">
+                    <div class="qr-container">
+                        <img src="data:image/png;base64,{{ qr_data }}" alt="QR Code Reservasi" class="qr-image">
+                    </div>
+                    <p class="text-muted mt-3">Tunjukkan QR code ini saat tiba di lapangan</p>
+                    <div class="booking-code-display">{{ reservasi.kode_booking }}</div>
+                </div>
+            </div>
+
+            {% if reservasi.status == 'dikonfirmasi' %}
+            <div class="card mt-3 card-success-light">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h4>Reservasi Aktif</h4>
+                    <p class="text-muted">Datanglah 10 menit sebelum jadwal dimulai</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
