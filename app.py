@@ -69,6 +69,11 @@ def index():
         ).fetchall()
         jadwal[tgl] = [dict(r) for r in reservasi_tgl]
 
+    booked_today = db.execute(
+        "SELECT COUNT(*) FROM reservasi WHERE id_lapangan=1 AND tanggal=? AND status IN ('menunggu','dikonfirmasi')",
+        (date.today().isoformat(),)
+    ).fetchone()[0]
+    total_slots = 16  # 06:00 - 22:00
     stats = {
         'total_reservasi': db.execute("SELECT COUNT(*) FROM reservasi").fetchone()[0],
         'reservasi_hari_ini': db.execute(
@@ -77,6 +82,7 @@ def index():
         'reservasi_menunggu': db.execute(
             "SELECT COUNT(*) FROM reservasi WHERE status='menunggu'"
         ).fetchone()[0],
+        'tersedia_hari_ini': max(0, total_slots - booked_today),
     }
     return render_template('index.html', lapangan=lapangan, stats=stats, jadwal=json.dumps(jadwal))
 

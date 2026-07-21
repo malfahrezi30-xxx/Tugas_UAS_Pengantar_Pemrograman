@@ -41,26 +41,15 @@
 
                         <!-- Data Lapangan -->
                         <div class="form-section">
-                            <h3 class="form-section-title"><i class="fas fa-map-marker-alt"></i> Data Lapangan & Waktu</h3>
-                            <div class="form-group">
-                                <label for="id_lapangan" class="form-label">Pilih Lapangan <span class="required">*</span></label>
-                                <select id="id_lapangan" name="id_lapangan" class="form-control form-select" required onchange="updateInfo(this)">
-                                    <option value="">-- Pilih Lapangan --</option>
-                                    {% for lp in lapangan_list %}
-                                    <option value="{{ lp.id_lapangan }}"
-                                            data-jenis="{{ lp.jenis_olahraga }}"
-                                            data-lokasi="{{ lp.lokasi }}"
-                                            {% if lapangan_id == lp.id_lapangan|string or request.form.get('id_lapangan') == lp.id_lapangan|string %}selected{% endif %}>
-                                        {{ lp.nama_lapangan }} - {{ lp.jenis_olahraga }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                            <h3 class="form-section-title"><i class="fas fa-map-marker-alt"></i> Data Lapangan &amp; Waktu</h3>
 
-                            <div id="lapanganInfo" class="lapangan-info-box" style="display:none;">
+                            <!-- Lapangan Info (read-only, single field) -->
+                            {% if lapangan %}
+                            <div class="lapangan-info-box" style="display:flex; margin-bottom:1rem;">
                                 <i class="fas fa-info-circle"></i>
-                                <span id="lapanganInfoText"></span>
+                                <span><strong>{{ lapangan.nama_lapangan }}</strong> &mdash; {{ lapangan.jenis_olahraga }} &mdash; {{ lapangan.lokasi }} &mdash; <span style="color:#16a34a;font-weight:600;">Gratis</span></span>
                             </div>
+                            {% endif %}
 
                             <div class="form-row">
                                 <div class="form-group">
@@ -68,14 +57,14 @@
                                     <input type="date" id="tanggal" name="tanggal" class="form-control"
                                            min="{{ today }}" required
                                            value="{{ request.form.get('tanggal', '') }}"
-                                           onchange="checkAvailability()">
+                                           onchange="calcSummary()">
                                 </div>
                             </div>
 
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="jam_mulai" class="form-label">Jam Mulai <span class="required">*</span></label>
-                                    <select id="jam_mulai" name="jam_mulai" class="form-control form-select" required onchange="calcTotal()">
+                                    <select id="jam_mulai" name="jam_mulai" class="form-control form-select" required onchange="calcSummary()">
                                         <option value="">-- Pilih Jam --</option>
                                         {% for h in ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'] %}
                                         <option value="{{ h }}" {% if request.form.get('jam_mulai') == h %}selected{% endif %}>{{ h }}</option>
@@ -84,7 +73,7 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="jam_selesai" class="form-label">Jam Selesai <span class="required">*</span></label>
-                                    <select id="jam_selesai" name="jam_selesai" class="form-control form-select" required onchange="calcTotal()">
+                                    <select id="jam_selesai" name="jam_selesai" class="form-control form-select" required onchange="calcSummary()">
                                         <option value="">-- Pilih Jam --</option>
                                         {% for h in ['07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00','22:00'] %}
                                         <option value="{{ h }}" {% if request.form.get('jam_selesai') == h %}selected{% endif %}>{{ h }}</option>
@@ -97,10 +86,12 @@
                         <!-- SUMMARY BOX -->
                         <div class="summary-box" id="summaryBox" style="display:none;">
                             <h4><i class="fas fa-receipt"></i> Ringkasan Pemesanan</h4>
+                            {% if lapangan %}
                             <div class="summary-row">
                                 <span>Lapangan</span>
-                                <span id="sumLapangan">-</span>
+                                <span>{{ lapangan.nama_lapangan }}</span>
                             </div>
+                            {% endif %}
                             <div class="summary-row">
                                 <span>Tanggal</span>
                                 <span id="sumTanggal">-</span>
@@ -113,10 +104,23 @@
                                 <span>Durasi</span>
                                 <span id="sumDurasi">-</span>
                             </div>
+                            <div class="summary-row">
+                                <span>Biaya</span>
+                                <span style="color:#16a34a;font-weight:700;">Gratis</span>
+                            </div>
+                        </div>
+
+                        <!-- CATATAN -->
+                        <div class="form-section">
+                            <h3 class="form-section-title"><i class="fas fa-sticky-note"></i> Catatan (Opsional)</h3>
+                            <div class="form-group">
+                                <textarea id="catatan" name="catatan" class="form-control" rows="3"
+                                          placeholder="Kegiatan apa? Contoh: latihan futsal bersama teman...">{{ request.form.get('catatan', '') }}</textarea>
+                            </div>
                         </div>
 
                         <div class="form-actions">
-                            <a href="{{ url_for('daftar_lapangan') }}" class="btn btn-outline">
+                            <a href="{{ url_for('index') }}" class="btn btn-outline">
                                 <i class="fas fa-arrow-left"></i> Kembali
                             </a>
                             <button type="submit" class="btn btn-primary">
@@ -139,8 +143,8 @@
                         <div class="guide-item">
                             <div class="guide-num">1</div>
                             <div>
-                                <strong>Pilih Lapangan</strong>
-                                <p>Pilih lapangan sesuai jenis olahraga yang diinginkan</p>
+                                <strong>Masukkan Data Diri</strong>
+                                <p>Isi nama lengkap dan nomor HP kamu</p>
                             </div>
                         </div>
                         <div class="guide-item">
@@ -182,33 +186,17 @@
 
 {% block extra_js %}
 <script>
-function updateInfo(sel) {
-    const opt = sel.options[sel.selectedIndex];
-    const info = document.getElementById('lapanganInfo');
-    const infoText = document.getElementById('lapanganInfoText');
-    if (opt.value) {
-        infoText.textContent = `${opt.dataset.jenis} | ${opt.dataset.lokasi}`;
-        info.style.display = 'flex';
-    } else {
-        info.style.display = 'none';
-    }
-    calcSummary();
-}
-
 function calcSummary() {
-    const sel = document.getElementById('id_lapangan');
-    const opt = sel.options[sel.selectedIndex];
     const jMulai = document.getElementById('jam_mulai').value;
     const jSelesai = document.getElementById('jam_selesai').value;
     const tanggal = document.getElementById('tanggal').value;
     const box = document.getElementById('summaryBox');
 
-    if (opt.value && jMulai && jSelesai && tanggal) {
-        const m = parseInt(jMulai.replace(':',''));
-        const s = parseInt(jSelesai.replace(':',''));
+    if (jMulai && jSelesai && tanggal) {
+        const m = parseInt(jMulai.replace(':', ''));
+        const s = parseInt(jSelesai.replace(':', ''));
         if (s > m) {
             const durasi = (s - m) / 100;
-            document.getElementById('sumLapangan').textContent = opt.text;
             document.getElementById('sumTanggal').textContent = tanggal;
             document.getElementById('sumJam').textContent = jMulai + ' - ' + jSelesai;
             document.getElementById('sumDurasi').textContent = durasi + ' jam';
@@ -221,19 +209,12 @@ function calcSummary() {
     }
 }
 
-function checkAvailability() {
-    calcSummary();
-}
-
-// Trigger onchange for jam_mulai and jam_selesai
+// Trigger on field changes
 document.getElementById('jam_mulai').addEventListener('change', calcSummary);
 document.getElementById('jam_selesai').addEventListener('change', calcSummary);
+document.getElementById('tanggal').addEventListener('change', calcSummary);
 
-// Init on load if values are pre-filled
-document.addEventListener('DOMContentLoaded', () => {
-    const sel = document.getElementById('id_lapangan');
-    if (sel.value) updateInfo(sel);
-    calcSummary();
-});
+// Init on load if values pre-filled
+document.addEventListener('DOMContentLoaded', calcSummary);
 </script>
 {% endblock %}
