@@ -1,0 +1,258 @@
+{% extends 'base.html' %}
+
+{% block title %}SportReserve - Penjadwalan Lapangan Olahraga Kampus{% endblock %}
+
+{% block extra_css %}
+<style>
+.slots-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.time-slot { padding: 10px 8px; border-radius: 8px; font-size: 0.85rem; text-align: center; border: 1px solid #e2e8f0; transition: all .2s; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.time-slot i { font-size: 0.75rem; }
+.slot-available { background: #dcfce7; border-color: #86efac; color: #16a34a; }
+.slot-booked { background: #fee2e2; border-color: #fca5a5; color: #dc2626; cursor: not-allowed; }
+.jadwal-tabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 16px; }
+.jadwal-tab { padding: 8px 16px; border-radius: 8px; border: 1px solid #e2e8f0; background: white; cursor: pointer; white-space: nowrap; transition: all .2s; font-size: 0.85rem; }
+.jadwal-tab:hover { border-color: var(--primary); color: var(--primary); }
+.jadwal-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+.jadwal-legend { display: flex; gap: 16px; margin-bottom: 16px; font-size: 0.85rem; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.dot-available { background: #22c55e; }
+.dot-booked { background: #ef4444; }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+.info-item { display: flex; flex-direction: column; gap: 4px; }
+.info-label { font-size: 0.8rem; color: #64748b; display: flex; align-items: center; gap: 6px; }
+.info-value { font-weight: 600; font-size: 0.95rem; }
+.fasilitas-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.fasilitas-tag { background: #f0fdf4; color: #16a34a; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; border: 1px solid #bbf7d0; }
+.mt-3 { margin-top: 1rem; }
+.detail-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 768px) { .detail-two-col { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- HERO SECTION -->
+<section class="hero">
+    <div class="hero-bg">
+        <div class="hero-shape shape-1"></div>
+        <div class="hero-shape shape-2"></div>
+        <div class="hero-shape shape-3"></div>
+    </div>
+    <div class="container">
+        <div class="hero-content">
+            <div class="hero-text">
+                <span class="hero-badge"><i class="fas fa-university"></i> Lapangan Kampus</span>
+                <h1 class="hero-title">
+                    Penjadwalan Lapangan<br>
+                    <span class="gradient-text">Olahraga Kampus</span>
+                </h1>
+                <p class="hero-desc">
+                    Sistem informasi penjadwalan lapangan olahraga kampus. Reservasi jadwal bermain dengan mudah, cepat, dan gratis untuk seluruh civitas akademika.
+                </p>
+                <div class="hero-actions">
+                    <a href="{{ url_for('form_reservasi') }}" class="btn btn-primary btn-lg">
+                        <i class="fas fa-calendar-plus"></i> Reservasi Sekarang
+                    </a>
+                    <a href="{{ url_for('cek_status') }}" class="btn btn-outline btn-lg">
+                        <i class="fas fa-search"></i> Cek Status
+                    </a>
+                </div>
+            </div>
+            <div class="hero-stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-ticket-alt"></i></div>
+                    <div class="stat-value">{{ stats.total_reservasi }}</div>
+                    <div class="stat-label">Total Reservasi</div>
+                </div>
+                <div class="stat-card stat-card-accent">
+                    <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                    <div class="stat-value">{{ stats.reservasi_hari_ini }}</div>
+                    <div class="stat-label">Reservasi Hari Ini</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stat-value">{{ stats.tersedia_hari_ini }}</div>
+                    <div class="stat-label">Slot Tersedia Hari Ini</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- INFO LAPANGAN & JADWAL -->
+{% if lapangan %}
+<section class="section-featured">
+    <div class="container">
+        <div class="section-header">
+            <h2>{{ lapangan.nama_lapangan }}</h2>
+            <p>{{ lapangan.lokasi }} &mdash; {{ lapangan.jenis_olahraga }}</p>
+        </div>
+
+        <div class="detail-two-col">
+            <!-- LEFT: Info -->
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-info-circle"></i> Informasi Lapangan</h3>
+                        <span class="badge badge-sport">{{ lapangan.jenis_olahraga }}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label"><i class="fas fa-map-marker-alt"></i> Lokasi</span>
+                                <span class="info-value">{{ lapangan.lokasi }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label"><i class="fas fa-tag"></i> Biaya</span>
+                                <span class="info-value" style="color: #16a34a;">Gratis</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label"><i class="fas fa-circle"></i> Status</span>
+                                <span class="info-value">
+                                    <span class="badge badge-success">{{ lapangan.status.title() }}</span>
+                                </span>
+                            </div>
+                        </div>
+                        {% if lapangan.deskripsi %}
+                        <div class="mt-3">
+                            <h4>Deskripsi</h4>
+                            <p class="text-muted">{{ lapangan.deskripsi }}</p>
+                        </div>
+                        {% endif %}
+                        {% if lapangan.fasilitas %}
+                        <div class="mt-3">
+                            <h4>Fasilitas</h4>
+                            <div class="fasilitas-list">
+                                {% for f in lapangan.fasilitas.split(',') %}
+                                <span class="fasilitas-tag"><i class="fas fa-check-circle"></i> {{ f.strip() }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: Jadwal Calendar -->
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-calendar-alt"></i> Ketersediaan Jadwal (7 Hari ke Depan)</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="jadwalContainer" data-jadwal='{{ jadwal }}'>
+                            <div class="jadwal-tabs" id="jadwalTabs"></div>
+                            <div class="jadwal-legend">
+                                <span class="legend-item"><span class="legend-dot dot-available"></span> Tersedia</span>
+                                <span class="legend-item"><span class="legend-dot dot-booked"></span> Terpesan</span>
+                            </div>
+                            <div class="jadwal-slots" id="jadwalSlots"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- HOW IT WORKS -->
+<section class="section-how">
+    <div class="container">
+        <div class="section-header">
+            <h2>Cara Reservasi</h2>
+            <p>Pesan jadwal lapangan kampus dalam 3 langkah mudah</p>
+        </div>
+        <div class="steps-grid">
+            <div class="step-card">
+                <div class="step-num">01</div>
+                <div class="step-icon"><i class="fas fa-calendar-alt"></i></div>
+                <h3>Pilih Jadwal</h3>
+                <p>Lihat ketersediaan jadwal di kalender lalu pilih tanggal dan jam yang tersedia.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">02</div>
+                <div class="step-icon"><i class="fas fa-edit"></i></div>
+                <h3>Isi Data</h3>
+                <p>Masukkan nama lengkap dan nomor HP kamu untuk proses reservasi.</p>
+            </div>
+            <div class="step-card">
+                <div class="step-num">03</div>
+                <div class="step-icon"><i class="fas fa-check-circle"></i></div>
+                <h3>Konfirmasi &amp; Main</h3>
+                <p>Dapatkan kode booking dan QR code sebagai bukti reservasi. Datang dan bermain!</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA CHECK STATUS -->
+<section class="section-cta-status">
+    <div class="container">
+        <div class="cta-card">
+            <div class="cta-icon"><i class="fas fa-search"></i></div>
+            <div class="cta-text">
+                <h2>Cek Status Reservasi</h2>
+                <p>Sudah punya kode booking? Cek status reservasi kamu di sini.</p>
+            </div>
+            <a href="{{ url_for('cek_status') }}" class="btn btn-white btn-lg">
+                <i class="fas fa-qrcode"></i> Cek Sekarang
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const container = document.getElementById('jadwalContainer');
+    if (!container) return;
+    const jadwal = JSON.parse(container.dataset.jadwal || '{}');
+    const hours = ['06:00','07:00','08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00','21:00'];
+    const dates = Object.keys(jadwal);
+
+    const tabs = document.getElementById('jadwalTabs');
+    const slotsDiv = document.getElementById('jadwalSlots');
+
+    function formatDate(isoDate) {
+        const d = new Date(isoDate + 'T00:00:00');
+        const days = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+        return days[d.getDay()] + ', ' + d.getDate() + '/' + (d.getMonth()+1);
+    }
+
+    function isBooked(date, hour) {
+        const slots = jadwal[date] || [];
+        return slots.some(s => s.jam_mulai <= hour && s.jam_selesai > hour);
+    }
+
+    function renderSlots(date) {
+        slotsDiv.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'slots-grid';
+        hours.forEach(h => {
+            const slot = document.createElement('div');
+            const booked = isBooked(date, h);
+            slot.className = 'time-slot ' + (booked ? 'slot-booked' : 'slot-available');
+            slot.innerHTML = `<i class="fas fa-${booked ? 'lock' : 'unlock-alt'}"></i><span>${h}</span>`;
+            grid.appendChild(slot);
+        });
+        slotsDiv.appendChild(grid);
+    }
+
+    dates.forEach((d, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'jadwal-tab' + (i === 0 ? ' active' : '');
+        btn.textContent = formatDate(d);
+        btn.onclick = () => {
+            document.querySelectorAll('.jadwal-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            renderSlots(d);
+        };
+        tabs.appendChild(btn);
+    });
+
+    if (dates.length > 0) renderSlots(dates[0]);
+})();
+</script>
+{% endblock %}
