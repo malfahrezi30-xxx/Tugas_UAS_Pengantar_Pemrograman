@@ -71,30 +71,9 @@ def init_db():
     count = db.execute("SELECT COUNT(*) FROM lapangan").fetchone()[0]
     if count == 0:
         lapangan_data = [
-            ('Lapangan Futsal A', 'Futsal', 'Gedung Olahraga Lt.1', 100000, 'aktif',
-             'Lapangan futsal indoor berkualitas tinggi dengan rumput sintetis premium.',
-             'Ruang Ganti, Toilet, Parkir, WiFi'),
-            ('Lapangan Futsal B', 'Futsal', 'Gedung Olahraga Lt.1', 100000, 'aktif',
-             'Lapangan futsal indoor dengan pencahayaan LED terbaik.',
-             'Ruang Ganti, Toilet, Parkir'),
-            ('Lapangan Badminton 1', 'Badminton', 'Hall Badminton Lt.2', 75000, 'aktif',
-             'Lapangan badminton standar internasional dengan lantai kayu.',
-             'AC, Ruang Ganti, Toilet'),
-            ('Lapangan Badminton 2', 'Badminton', 'Hall Badminton Lt.2', 75000, 'aktif',
-             'Lapangan badminton dengan tribun penonton 200 kursi.',
-             'AC, Tribun, Ruang Ganti, Toilet'),
-            ('Lapangan Basket Outdoor', 'Basket', 'Area Outdoor Timur', 150000, 'aktif',
-             'Lapangan basket outdoor dengan lantai aspal berkualitas tinggi.',
-             'Toilet, Parkir, Kantin'),
-            ('Lapangan Basket Indoor', 'Basket', 'GOR Indoor Lt.1', 200000, 'aktif',
-             'Lapangan basket indoor berstandar NBA dengan lantai parket.',
-             'AC, Ruang Ganti, Toilet, Tribun 500 kursi'),
-            ('Lapangan Voli Indoor', 'Voli', 'Hall Voli Lt.2', 80000, 'aktif',
-             'Lapangan voli indoor dengan net berkualitas internasional.',
-             'AC, Ruang Ganti, Toilet'),
-            ('Lapangan Tenis A', 'Tenis', 'Area Tenis Selatan', 120000, 'aktif',
-             'Lapangan tenis dengan permukaan hard court.',
-             'Toilet, Parkir, Kantin'),
+            ('Lapangan Multiguna Kampus', 'Multiguna', 'Area Olahraga Utama', 0, 'aktif',
+             'Lapangan olahraga multiguna untuk seluruh civitas akademika kampus. Dapat digunakan untuk futsal, basket, voli, dan badminton.',
+             'Toilet, Ruang Ganti, Tribun Penonton, Parkir, Penerangan LED Malam'),
         ]
         for d in lapangan_data:
             db.execute(
@@ -106,20 +85,20 @@ def init_db():
         import random
         from datetime import date, timedelta
         kode_set = set()
-        for i in range(20):
+        for i in range(15):
             while True:
                 kode = f"RSV202407{random.randint(10000, 99999)}"
                 if kode not in kode_set:
                     kode_set.add(kode)
                     break
-            tgl = (date.today() + timedelta(days=random.randint(-10, 10))).isoformat()
+            tgl = (date.today() + timedelta(days=random.randint(-5, 5))).isoformat()
             jam_m = random.choice(['08:00', '09:00', '10:00', '13:00', '14:00', '15:00', '16:00', '17:00'])
             jam_s_map = {'08:00': '09:00', '09:00': '10:00', '10:00': '11:00',
                          '13:00': '14:00', '14:00': '15:00', '15:00': '16:00',
                          '16:00': '17:00', '17:00': '18:00'}
             jam_s = jam_s_map[jam_m]
-            id_lap = random.randint(1, 8)
-            lap_harga = lapangan_data[id_lap-1][3]
+            id_lap = 1
+            lap_harga = 0
             status = random.choice(['menunggu', 'dikonfirmasi', 'dikonfirmasi', 'selesai'])
             db.execute(
                 """INSERT OR IGNORE INTO reservasi (nama_pemesan, no_hp, id_lapangan, tanggal,
