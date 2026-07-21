@@ -59,7 +59,6 @@
                         <th>Pemesan</th>
                         <th>Lapangan</th>
                         <th>Tanggal & Jam</th>
-                        <th>Total</th>
                         <th>Status</th>
                         <th>Aksi</th>
                     </tr>
@@ -82,7 +81,6 @@
                             <div class="cell-name">{{ r.tanggal }}</div>
                             <div class="cell-sub"><i class="fas fa-clock"></i> {{ r.jam_mulai }} - {{ r.jam_selesai }}</div>
                         </td>
-                        <td class="price-cell">Rp {{ "{:,.0f}".format(r.total_harga) }}</td>
                         <td>
                             <span class="badge {{ 'badge-warning' if r.status=='menunggu' else 'badge-success' if r.status=='dikonfirmasi' else 'badge-info' if r.status=='selesai' else 'badge-danger' }}">
                                 {{ r.status.title() }}

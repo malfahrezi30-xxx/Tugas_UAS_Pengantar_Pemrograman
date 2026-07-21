@@ -44,15 +44,14 @@
                             <h3 class="form-section-title"><i class="fas fa-map-marker-alt"></i> Data Lapangan & Waktu</h3>
                             <div class="form-group">
                                 <label for="id_lapangan" class="form-label">Pilih Lapangan <span class="required">*</span></label>
-                                <select id="id_lapangan" name="id_lapangan" class="form-control form-select" required onchange="updateHarga(this)">
+                                <select id="id_lapangan" name="id_lapangan" class="form-control form-select" required onchange="updateInfo(this)">
                                     <option value="">-- Pilih Lapangan --</option>
                                     {% for lp in lapangan_list %}
                                     <option value="{{ lp.id_lapangan }}"
-                                            data-harga="{{ lp.harga_per_jam }}"
                                             data-jenis="{{ lp.jenis_olahraga }}"
                                             data-lokasi="{{ lp.lokasi }}"
                                             {% if lapangan_id == lp.id_lapangan|string or request.form.get('id_lapangan') == lp.id_lapangan|string %}selected{% endif %}>
-                                        {{ lp.nama_lapangan }} - {{ lp.jenis_olahraga }} (Rp {{ "{:,.0f}".format(lp.harga_per_jam) }}/jam)
+                                        {{ lp.nama_lapangan }} - {{ lp.jenis_olahraga }}
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -113,10 +112,6 @@
                             <div class="summary-row">
                                 <span>Durasi</span>
                                 <span id="sumDurasi">-</span>
-                            </div>
-                            <div class="summary-row summary-total">
-                                <span>Total Harga</span>
-                                <span id="sumTotal">-</span>
                             </div>
                         </div>
 
@@ -187,21 +182,20 @@
 
 {% block extra_js %}
 <script>
-function updateHarga(sel) {
+function updateInfo(sel) {
     const opt = sel.options[sel.selectedIndex];
     const info = document.getElementById('lapanganInfo');
     const infoText = document.getElementById('lapanganInfoText');
     if (opt.value) {
-        const harga = parseInt(opt.dataset.harga);
-        infoText.textContent = `${opt.dataset.jenis} | ${opt.dataset.lokasi} | Rp ${harga.toLocaleString('id-ID')}/jam`;
+        infoText.textContent = `${opt.dataset.jenis} | ${opt.dataset.lokasi}`;
         info.style.display = 'flex';
     } else {
         info.style.display = 'none';
     }
-    calcTotal();
+    calcSummary();
 }
 
-function calcTotal() {
+function calcSummary() {
     const sel = document.getElementById('id_lapangan');
     const opt = sel.options[sel.selectedIndex];
     const jMulai = document.getElementById('jam_mulai').value;
@@ -210,17 +204,14 @@ function calcTotal() {
     const box = document.getElementById('summaryBox');
 
     if (opt.value && jMulai && jSelesai && tanggal) {
-        const harga = parseInt(opt.dataset.harga);
         const m = parseInt(jMulai.replace(':',''));
         const s = parseInt(jSelesai.replace(':',''));
         if (s > m) {
             const durasi = (s - m) / 100;
-            const total = durasi * harga;
-            document.getElementById('sumLapangan').textContent = opt.text.split(' (')[0];
+            document.getElementById('sumLapangan').textContent = opt.text;
             document.getElementById('sumTanggal').textContent = tanggal;
             document.getElementById('sumJam').textContent = jMulai + ' - ' + jSelesai;
             document.getElementById('sumDurasi').textContent = durasi + ' jam';
-            document.getElementById('sumTotal').textContent = 'Rp ' + total.toLocaleString('id-ID');
             box.style.display = 'block';
         } else {
             box.style.display = 'none';
@@ -231,14 +222,18 @@ function calcTotal() {
 }
 
 function checkAvailability() {
-    calcTotal();
+    calcSummary();
 }
+
+// Trigger onchange for jam_mulai and jam_selesai
+document.getElementById('jam_mulai').addEventListener('change', calcSummary);
+document.getElementById('jam_selesai').addEventListener('change', calcSummary);
 
 // Init on load if values are pre-filled
 document.addEventListener('DOMContentLoaded', () => {
     const sel = document.getElementById('id_lapangan');
-    if (sel.value) updateHarga(sel);
-    calcTotal();
+    if (sel.value) updateInfo(sel);
+    calcSummary();
 });
 </script>
 {% endblock %}

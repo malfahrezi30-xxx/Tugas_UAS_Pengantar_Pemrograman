@@ -54,7 +54,6 @@
                         <th>Nama Lapangan</th>
                         <th>Jenis</th>
                         <th>Lokasi</th>
-                        <th>Harga/Jam</th>
                         <th>Status</th>
                         <th>Aksi</th>
                     </tr>
@@ -71,7 +70,6 @@
                         </td>
                         <td><span class="badge badge-sport">{{ lp.jenis_olahraga }}</span></td>
                         <td>{{ lp.lokasi }}</td>
-                        <td class="price-cell">Rp {{ "{:,.0f}".format(lp.harga_per_jam) }}</td>
                         <td>
                             <span class="badge {{ 'badge-success' if lp.status == 'aktif' else 'badge-danger' }}">
                                 {{ lp.status.title() }}

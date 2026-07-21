@@ -245,7 +245,9 @@ def admin_dashboard():
         'reservasi_dibatalkan': db.execute(
             "SELECT COUNT(*) FROM reservasi WHERE status='dibatalkan'"
         ).fetchone()[0],
-        'pendapatan_bulan_ini': 0,  # Lapangan kampus gratis
+        'reservasi_selesai': db.execute(
+            "SELECT COUNT(*) FROM reservasi WHERE status='selesai'"
+        ).fetchone()[0],
     }
 
     # Reservasi 6 bulan terakhir (untuk grafik)

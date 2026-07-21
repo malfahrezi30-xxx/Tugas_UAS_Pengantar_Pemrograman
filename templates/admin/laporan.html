@@ -11,7 +11,7 @@
 <div class="admin-page-header">
     <div>
         <h2>Laporan Bulanan</h2>
-        <p>Ringkasan reservasi dan pendapatan per bulan</p>
+        <p>Ringkasan data reservasi lapangan per bulan</p>
     </div>
 </div>
 
@@ -55,11 +55,11 @@
             <div class="stat-card-label">Menunggu</div>
         </div>
     </div>
-    <div class="admin-stat-card stat-purple">
-        <div class="stat-card-icon"><i class="fas fa-money-bill-wave"></i></div>
+    <div class="admin-stat-card stat-red">
+        <div class="stat-card-icon"><i class="fas fa-times-circle"></i></div>
         <div class="stat-card-body">
-            <div class="stat-card-value">Rp {{ "{:,.0f}".format(ringkasan.pendapatan) }}</div>
-            <div class="stat-card-label">Total Pendapatan</div>
+            <div class="stat-card-value">{{ ringkasan.dibatalkan }}</div>
+            <div class="stat-card-label">Dibatalkan</div>
         </div>
     </div>
 </div>
@@ -87,8 +87,7 @@
                         <tr>
                             <th>Lapangan</th>
                             <th>Jenis</th>
-                            <th>Total</th>
-                            <th>Pendapatan</th>
+                            <th>Total Reservasi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -97,7 +96,6 @@
                             <td>{{ lp.nama_lapangan }}</td>
                             <td><span class="badge badge-sport">{{ lp.jenis_olahraga }}</span></td>
                             <td><strong>{{ lp.total }}</strong></td>
-                            <td class="price-cell">Rp {{ "{:,.0f}".format(lp.pendapatan) }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -124,7 +122,6 @@
                         <th>Lapangan</th>
                         <th>Tanggal</th>
                         <th>Jam</th>
-                        <th>Total</th>
                         <th>Status</th>
                     </tr>
                 </thead>
@@ -137,7 +134,6 @@
                         <td>{{ r.nama_lapangan }}</td>
                         <td>{{ r.tanggal }}</td>
                         <td>{{ r.jam_mulai }}-{{ r.jam_selesai }}</td>
-                        <td class="price-cell">Rp {{ "{:,.0f}".format(r.total_harga) }}</td>
                         <td>
                             <span class="badge {{ 'badge-warning' if r.status=='menunggu' else 'badge-success' if r.status=='dikonfirmasi' else 'badge-info' if r.status=='selesai' else 'badge-danger' }}">
                                 {{ r.status.title() }}
@@ -146,13 +142,6 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot>
-                    <tr class="table-foot">
-                        <td colspan="6"><strong>Total Pendapatan</strong></td>
-                        <td class="price-cell"><strong>Rp {{ "{:,.0f}".format(ringkasan.pendapatan) }}</strong></td>
-                        <td></td>
-                    </tr>
-                </tfoot>
             </table>
         </div>
         {% else %}
@@ -173,7 +162,7 @@ const barCtx = document.getElementById('barChart').getContext('2d');
 new Chart(barCtx, {
     type: 'bar',
     data: {
-        labels: perHari.map(d => d.tanggal.slice(8)), // show day number
+        labels: perHari.map(d => d.tanggal.slice(8)), // tampilkan tanggal saja
         datasets: [
             {
                 label: 'Jumlah Reservasi',
@@ -182,27 +171,14 @@ new Chart(barCtx, {
                 borderColor: '#6366f1',
                 borderWidth: 1,
                 borderRadius: 4,
-                yAxisID: 'y'
-            },
-            {
-                label: 'Pendapatan (Rp)',
-                data: perHari.map(d => d.pendapatan),
-                type: 'line',
-                borderColor: '#10b981',
-                backgroundColor: 'rgba(16,185,129,0.1)',
-                borderWidth: 2,
-                tension: 0.4,
-                fill: false,
-                yAxisID: 'y1'
             }
         ]
     },
     options: {
         responsive: true,
-        plugins: { legend: { position: 'top' } },
+        plugins: { legend: { display: false } },
         scales: {
-            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, title: { display: true, text: 'Reservasi' } },
-            y1: { beginAtZero: true, position: 'right', grid: { display: false }, title: { display: true, text: 'Pendapatan (Rp)' } },
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, title: { display: true, text: 'Jumlah Reservasi' } },
             x: { grid: { display: false }, title: { display: true, text: 'Tanggal' } }
         }
     }
