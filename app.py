@@ -16,6 +16,13 @@ app.secret_key = 'sportreserve_secret_key_2024'
 def setup():
     init_db()
 
+@app.teardown_appcontext
+def close_connection(exception):
+    from flask import g
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
 # ─── HELPER ──────────────────────────────────────────────────────────────────
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -47,73 +54,55 @@ def generate_qr(data):
 @app.route('/')
 def index():
     db = get_db()
-    lapangan = db.execute(
-        "SELECT * FROM lapangan WHERE status='aktif' ORDER BY jenis_olahraga"
-    ).fetchall()
-    stats = {
-        'total_lapangan': db.execute("SELECT COUNT(*) FROM lapangan").fetchone()[0],
-        'total_reservasi': db.execute("SELECT COUNT(*) FROM reservasi").fetchone()[0],
-        'reservasi_hari_ini': db.execute(
-            "SELECT COUNT(*) FROM reservasi WHERE tanggal=?", (date.today().isoformat(),)
-        ).fetchone()[0],
-    }
-    return render_template('index.html', lapangan=lapangan, stats=stats)
-
-
-@app.route('/lapangan')
-def daftar_lapangan():
-    db = get_db()
-    jenis_filter = request.args.get('jenis', '')
-    if jenis_filter:
-        lapangan = db.execute(
-            "SELECT * FROM lapangan WHERE status='aktif' AND jenis_olahraga=? ORDER BY nama_lapangan",
-            (jenis_filter,)
-        ).fetchall()
-    else:
-        lapangan = db.execute(
-            "SELECT * FROM lapangan WHERE status='aktif' ORDER BY jenis_olahraga, nama_lapangan"
-        ).fetchall()
-    jenis_list = ['Futsal', 'Badminton', 'Basket', 'Voli', 'Tenis', 'Renang']
-    return render_template('daftar_lapangan.html', lapangan=lapangan,
-                           jenis_list=jenis_list, jenis_filter=jenis_filter)
-
-
-@app.route('/lapangan/<int:id>')
-def detail_lapangan(id):
-    db = get_db()
-    lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=?", (id,)).fetchone()
-    if not lapangan:
-        flash('Lapangan tidak ditemukan.', 'danger')
-        return redirect(url_for('daftar_lapangan'))
-
-    # Jadwal reservasi 7 hari ke depan
+    lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=1").fetchone()
+    
+    # Jadwal reservasi 7 hari ke depan untuk lapangan utama (ID=1)
     from datetime import timedelta
     jadwal = {}
     for i in range(7):
         tgl = (date.today() + timedelta(days=i)).isoformat()
         reservasi_tgl = db.execute(
             "SELECT jam_mulai, jam_selesai, status FROM reservasi "
-            "WHERE id_lapangan=? AND tanggal=? AND status IN ('menunggu','dikonfirmasi')",
-            (id, tgl)
+            "WHERE id_lapangan=1 AND tanggal=? AND status IN ('menunggu','dikonfirmasi') "
+            "ORDER BY jam_mulai",
+            (tgl,)
         ).fetchall()
         jadwal[tgl] = [dict(r) for r in reservasi_tgl]
 
-    return render_template('detail_lapangan.html', lapangan=lapangan, jadwal=json.dumps(jadwal))
+    stats = {
+        'total_reservasi': db.execute("SELECT COUNT(*) FROM reservasi").fetchone()[0],
+        'reservasi_hari_ini': db.execute(
+            "SELECT COUNT(*) FROM reservasi WHERE tanggal=?", (date.today().isoformat(),)
+        ).fetchone()[0],
+        'reservasi_menunggu': db.execute(
+            "SELECT COUNT(*) FROM reservasi WHERE status='menunggu'"
+        ).fetchone()[0],
+    }
+    return render_template('index.html', lapangan=lapangan, stats=stats, jadwal=json.dumps(jadwal))
+
+
+@app.route('/lapangan')
+def daftar_lapangan():
+    return redirect(url_for('index'))
+
+
+@app.route('/lapangan/<int:id>')
+def detail_lapangan(id):
+    return redirect(url_for('index'))
 
 
 @app.route('/reservasi', methods=['GET', 'POST'])
 def form_reservasi():
     db = get_db()
-    lapangan_list = db.execute("SELECT * FROM lapangan WHERE status='aktif'").fetchall()
-    lapangan_id = request.args.get('lapangan_id', '')
+    lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=1").fetchone()
 
     if request.method == 'POST':
         nama = request.form.get('nama_pemesan', '').strip()
         no_hp = request.form.get('no_hp', '').strip()
-        id_lapangan = request.form.get('id_lapangan', '')
         tanggal = request.form.get('tanggal', '')
         jam_mulai = request.form.get('jam_mulai', '')
         jam_selesai = request.form.get('jam_selesai', '')
+        catatan = request.form.get('catatan', '').strip()
 
         # Validasi input
         errors = []
@@ -121,8 +110,6 @@ def form_reservasi():
             errors.append('Nama pemesan wajib diisi.')
         if not no_hp or len(no_hp) < 10:
             errors.append('Nomor HP tidak valid.')
-        if not id_lapangan:
-            errors.append('Lapangan wajib dipilih.')
         if not tanggal:
             errors.append('Tanggal wajib diisi.')
         if tanggal < date.today().isoformat():
@@ -136,43 +123,33 @@ def form_reservasi():
             # Cek bentrok jadwal
             bentrok = db.execute(
                 """SELECT id_reservasi FROM reservasi
-                   WHERE id_lapangan=? AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
+                   WHERE id_lapangan=1 AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
                    AND NOT (jam_selesai <= ? OR jam_mulai >= ?)""",
-                (id_lapangan, tanggal, jam_mulai, jam_selesai)
+                (tanggal, jam_mulai, jam_selesai)
             ).fetchone()
 
             if bentrok:
                 flash('❌ Jadwal bentrok! Lapangan sudah dipesan pada waktu tersebut.', 'danger')
             else:
-                # Hitung durasi dan harga
-                lapangan = db.execute(
-                    "SELECT * FROM lapangan WHERE id_lapangan=?", (id_lapangan,)
-                ).fetchone()
-                h_mulai = int(jam_mulai.replace(':', ''))
-                h_selesai = int(jam_selesai.replace(':', ''))
-                durasi = (h_selesai - h_mulai) / 100
-                total_harga = durasi * lapangan['harga_per_jam']
-
                 # Buat kode booking unik
                 kode_booking = f"RSV{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
                 db.execute(
                     """INSERT INTO reservasi
                        (nama_pemesan, no_hp, id_lapangan, tanggal, jam_mulai, jam_selesai,
-                        status, kode_booking, total_harga)
-                       VALUES (?,?,?,?,?,?,?,?,?)""",
-                    (nama, no_hp, id_lapangan, tanggal, jam_mulai, jam_selesai,
-                     'menunggu', kode_booking, total_harga)
+                        status, kode_booking, total_harga, catatan)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (nama, no_hp, 1, tanggal, jam_mulai, jam_selesai,
+                     'menunggu', kode_booking, 0, catatan)
                 )
                 db.commit()
-                flash(f'✅ Reservasi berhasil! Kode booking Anda: {kode_booking}', 'success')
+                flash(f'✅ Reservasi berhasil diajukan! Kode booking Anda: {kode_booking}', 'success')
                 return redirect(url_for('status_reservasi', kode=kode_booking))
 
         for err in errors:
             flash(err, 'danger')
 
-    return render_template('form_reservasi.html', lapangan_list=lapangan_list,
-                           lapangan_id=lapangan_id, today=date.today().isoformat())
+    return render_template('form_reservasi.html', lapangan=lapangan, today=date.today().isoformat())
 
 
 @app.route('/status')
@@ -184,7 +161,7 @@ def cek_status():
 def status_reservasi(kode):
     db = get_db()
     reservasi = db.execute(
-        """SELECT r.*, l.nama_lapangan, l.jenis_olahraga, l.lokasi, l.harga_per_jam
+        """SELECT r.*, l.nama_lapangan, l.jenis_olahraga, l.lokasi
            FROM reservasi r JOIN lapangan l ON r.id_lapangan=l.id_lapangan
            WHERE r.kode_booking=?""",
         (kode,)
