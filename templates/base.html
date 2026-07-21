@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SportReserve - Sistem Reservasi Lapangan Olahraga{% endblock %}</title>
+    <meta name="description" content="{% block meta_desc %}Sistem reservasi lapangan olahraga online terpercaya. Pesan lapangan futsal, badminton, basket, voli dengan mudah.{% endblock %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="{{ url_for('index') }}" class="navbar-brand">
+                <i class="fas fa-futbol"></i>
+                <span>Sport<strong>Reserve</strong></span>
+            </a>
+            <button class="navbar-toggle" id="navToggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <ul class="navbar-menu" id="navMenu">
+                <li><a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">
+                    <i class="fas fa-home"></i> Beranda
+                </a></li>
+                <li><a href="{{ url_for('form_reservasi') }}" class="nav-link {% if request.endpoint == 'form_reservasi' %}active{% endif %}">
+                    <i class="fas fa-calendar-plus"></i> Reservasi
+                </a></li>
+                <li><a href="{{ url_for('cek_status') }}" class="nav-link {% if request.endpoint in ['cek_status','status_reservasi'] %}active{% endif %}">
+                    <i class="fas fa-search"></i> Cek Status
+                </a></li>
+                <li><a href="{{ url_for('admin_login') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-lock"></i> Admin
+                </a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- FLASH MESSAGES -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible">
+                {% if category == 'success' %}<i class="fas fa-check-circle"></i>
+                {% elif category == 'danger' %}<i class="fas fa-exclamation-circle"></i>
+                {% elif category == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+                {% else %}<i class="fas fa-info-circle"></i>{% endif %}
+                {{ message }}
+                <button class="alert-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- MAIN CONTENT -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="brand-logo">
+                        <i class="fas fa-futbol"></i>
+                        <span>Sport<strong>Reserve</strong></span>
+                    </div>
+                    <p>Sistem Informasi Penjadwalan Lapangan Olahraga Kampus. Gratis untuk civitas akademika.</p>
+                    <div class="social-links">
+                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="social-link"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h4>Menu</h4>
+                    <ul>
+                        <li><a href="{{ url_for('index') }}">Beranda</a></li>
+                        <li><a href="{{ url_for('form_reservasi') }}">Buat Reservasi</a></li>
+                        <li><a href="{{ url_for('cek_status') }}">Cek Status</a></li>
+                        <li><a href="{{ url_for('admin_login') }}">Admin Login</a></li>
+                    </ul>
+                </div>
+                <div class="footer-contact">
+                    <h4>Kontak</h4>
+                    <ul>
+                        <li><i class="fas fa-map-marker-alt"></i> Area Olahraga Utama Kampus</li>
+                        <li><i class="fas fa-clock"></i> Buka 06:00 - 22:00</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 SportReserve. Sistem Informasi Reservasi Lapangan Kampus.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
