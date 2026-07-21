@@ -228,8 +228,10 @@ def admin_logout():
 def admin_dashboard():
     db = get_db()
     today = date.today().isoformat()
+    from datetime import datetime as dt
 
     stats = {
+        'total_lapangan': db.execute("SELECT COUNT(*) FROM lapangan").fetchone()[0],
         'total_reservasi': db.execute("SELECT COUNT(*) FROM reservasi").fetchone()[0],
         'reservasi_hari_ini': db.execute(
             "SELECT COUNT(*) FROM reservasi WHERE tanggal=?", (today,)
@@ -243,6 +245,7 @@ def admin_dashboard():
         'reservasi_dibatalkan': db.execute(
             "SELECT COUNT(*) FROM reservasi WHERE status='dibatalkan'"
         ).fetchone()[0],
+        'pendapatan_bulan_ini': 0,  # Lapangan kampus gratis
     }
 
     # Reservasi 6 bulan terakhir (untuk grafik)
@@ -251,6 +254,22 @@ def admin_dashboard():
            FROM reservasi
            WHERE tanggal >= date('now', '-6 months')
            GROUP BY bulan ORDER BY bulan"""
+    ).fetchall()
+
+    # Distribusi jenis olahraga (berdasarkan lapangan yang dipesan)
+    jenis_data = db.execute(
+        """SELECT l.jenis_olahraga, COUNT(r.id_reservasi) as total
+           FROM lapangan l
+           LEFT JOIN reservasi r ON l.id_lapangan=r.id_lapangan
+           GROUP BY l.jenis_olahraga"""
+    ).fetchall()
+
+    # Top lapangan (untuk single field, tetap tampilkan satu)
+    top_lapangan = db.execute(
+        """SELECT l.nama_lapangan, l.jenis_olahraga, COUNT(r.id_reservasi) as total
+           FROM lapangan l
+           LEFT JOIN reservasi r ON l.id_lapangan=r.id_lapangan
+           GROUP BY l.id_lapangan ORDER BY total DESC LIMIT 5"""
     ).fetchall()
 
     # Reservasi terbaru
@@ -263,6 +282,8 @@ def admin_dashboard():
     return render_template('admin/dashboard.html',
                            stats=stats,
                            monthly_data=json.dumps([dict(r) for r in monthly_data]),
+                           jenis_data=json.dumps([dict(r) for r in jenis_data]),
+                           top_lapangan=top_lapangan,
                            recent_reservasi=recent_reservasi)
 
 
@@ -272,8 +293,11 @@ def admin_dashboard():
 @login_required
 def admin_lapangan():
     db = get_db()
-    lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=1").fetchone()
-    return render_template('admin/lapangan.html', lapangan=lapangan)
+    # Ambil sebagai list agar template bisa pakai for-loop
+    lapangan_list = db.execute("SELECT * FROM lapangan").fetchall()
+    jenis_list = ['Multiguna', 'Futsal', 'Badminton', 'Basket', 'Voli', 'Tenis']
+    return render_template('admin/lapangan.html', lapangan=lapangan_list,
+                           jenis_list=jenis_list, search='', jenis_filter='')
 
 
 @app.route('/admin/lapangan/tambah', methods=['GET', 'POST'])
@@ -536,19 +560,35 @@ def admin_laporan():
         'menunggu': sum(1 for r in laporan_bulan if r['status'] == 'menunggu'),
         'dibatalkan': sum(1 for r in laporan_bulan if r['status'] == 'dibatalkan'),
         'selesai': sum(1 for r in laporan_bulan if r['status'] == 'selesai'),
+        'pendapatan': 0,  # Lapangan kampus gratis
     }
 
-    per_hari = db.execute(
+    per_hari_raw = db.execute(
         """SELECT tanggal, COUNT(*) as total
            FROM reservasi WHERE strftime('%Y-%m', tanggal)=?
            GROUP BY tanggal ORDER BY tanggal""",
         (bulan,)
     ).fetchall()
 
+    # Tambahkan pendapatan=0 ke setiap hari (lapangan gratis)
+    per_hari = [{'tanggal': r['tanggal'], 'total': r['total'], 'pendapatan': 0}
+                for r in per_hari_raw]
+
+    # Ringkasan per lapangan
+    per_lapangan = db.execute(
+        """SELECT l.nama_lapangan, l.jenis_olahraga, COUNT(r.id_reservasi) as total, 0 as pendapatan
+           FROM lapangan l
+           LEFT JOIN reservasi r ON l.id_lapangan=r.id_lapangan
+             AND strftime('%Y-%m', r.tanggal)=?
+           GROUP BY l.id_lapangan""",
+        (bulan,)
+    ).fetchall()
+
     return render_template('admin/laporan.html',
                            laporan_bulan=laporan_bulan,
                            ringkasan=ringkasan,
-                           per_hari=json.dumps([dict(r) for r in per_hari]),
+                           per_hari=json.dumps(per_hari),
+                           per_lapangan=per_lapangan,
                            bulan=bulan)
 
 

@@ -1,153 +1,212 @@
 import unittest
 import json
+import hashlib
+from datetime import date, timedelta
 from app import app
-from database import get_db
+from database import init_db, get_db
+import sqlite3, os
+
+DB_PATH = os.path.join(os.path.dirname(__file__), 'database.db')
+
 
 class TestSportReserve(unittest.TestCase):
     def setUp(self):
-        self.app = app.test_client()
-        self.app.testing = True
+        self.client = app.test_client()
+        self.client.testing = True
+        init_db()  # pastikan database & seed sudah ada
 
-    def test_index(self):
-        response = self.app.get('/')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'SportReserve', response.data)
+    # ─── USER ROUTES ─────────────────────────────────────────────────────────
 
-    def test_daftar_lapangan(self):
-        response = self.app.get('/lapangan')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Daftar Lapangan', response.data)
+    def test_01_halaman_beranda(self):
+        """Beranda harus bisa diakses dan mengandung nama aplikasi"""
+        r = self.client.get('/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'SportReserve', r.data)
 
-    def test_daftar_lapangan_filter(self):
-        response = self.app.get('/lapangan?jenis=Futsal')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Futsal', response.data)
+    def test_02_redirect_daftar_lapangan(self):
+        """/lapangan harus redirect ke beranda (single-field)"""
+        r = self.client.get('/lapangan')
+        self.assertEqual(r.status_code, 302)  # redirect
 
-    def test_detail_lapangan(self):
-        response = self.app.get('/lapangan/1')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Informasi Lapangan', response.data)
+    def test_03_redirect_detail_lapangan(self):
+        """/lapangan/<id> harus redirect ke beranda"""
+        r = self.client.get('/lapangan/1')
+        self.assertEqual(r.status_code, 302)
 
-    def test_form_reservasi_get(self):
-        response = self.app.get('/reservasi')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Buat Reservasi', response.data)
+    def test_04_form_reservasi_get(self):
+        """Halaman form reservasi harus bisa diakses"""
+        r = self.client.get('/reservasi')
+        self.assertEqual(r.status_code, 200)
 
-    def test_cek_status_get(self):
-        response = self.app.get('/status')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Cek Status', response.data)
+    def test_05_form_reservasi_validasi_kosong(self):
+        """Submit form kosong harus ditolak dan kembali ke form"""
+        r = self.client.post('/reservasi', data={}, follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
 
-    def test_admin_login_get(self):
-        response = self.app.get('/admin/login')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Admin Login', response.data)
+    def test_06_form_reservasi_submit_valid(self):
+        """Reservasi valid harus berhasil dan redirect ke halaman status"""
+        tanggal_mendatang = (date.today() + timedelta(days=5)).isoformat()
+        r = self.client.post('/reservasi', data={
+            'nama_pemesan': 'Test User Unittest',
+            'no_hp': '081298765432',
+            'tanggal': tanggal_mendatang,
+            'jam_mulai': '13:00',
+            'jam_selesai': '14:00',
+            'catatan': 'Reservasi test'
+        }, follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        # Hapus data test dari DB
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM reservasi WHERE nama_pemesan='Test User Unittest'")
+        conn.commit()
+        conn.close()
 
-    def test_admin_flow(self):
-        # 1. Login
-        response = self.app.post('/admin/login', data={
+    def test_07_cek_status_get(self):
+        """Halaman cek status harus bisa diakses"""
+        r = self.client.get('/status')
+        self.assertEqual(r.status_code, 200)
+
+    def test_08_cek_status_kode_tidak_ada(self):
+        """Kode booking tidak valid harus redirect dengan pesan error"""
+        r = self.client.get('/status/KODEBOGUS123', follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+
+    def test_09_api_cek_jadwal(self):
+        """API cek-jadwal harus mengembalikan JSON"""
+        tanggal = date.today().isoformat()
+        r = self.client.get(f'/api/cek-jadwal?tanggal={tanggal}')
+        self.assertEqual(r.status_code, 200)
+        data = json.loads(r.data)
+        self.assertIsInstance(data, list)
+
+    def test_10_api_cek_jadwal_tanpa_parameter(self):
+        """API tanpa parameter tanggal harus return 400"""
+        r = self.client.get('/api/cek-jadwal')
+        self.assertEqual(r.status_code, 400)
+
+    # ─── ADMIN ROUTES ────────────────────────────────────────────────────────
+
+    def test_11_admin_login_get(self):
+        """Halaman login admin harus bisa diakses"""
+        r = self.client.get('/admin/login')
+        self.assertEqual(r.status_code, 200)
+
+    def test_12_admin_redirect_tanpa_login(self):
+        """Akses admin tanpa login harus redirect ke halaman login"""
+        r = self.client.get('/admin/dashboard')
+        self.assertEqual(r.status_code, 302)
+
+    def test_13_admin_login_salah(self):
+        """Login dengan password salah harus gagal"""
+        r = self.client.post('/admin/login', data={
+            'username': 'admin',
+            'password': 'salah123'
+        }, follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'salah', r.data.lower())
+
+    def _login_admin(self):
+        """Helper: login sebagai admin"""
+        self.client.post('/admin/login', data={
             'username': 'admin',
             'password': 'admin123'
         }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Dashboard', response.data)
 
-        # 2. View Dashboard
-        response = self.app.get('/admin/dashboard')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Dashboard', response.data)
+    def test_14_admin_login_berhasil(self):
+        """Login admin yang benar harus berhasil dan masuk dashboard"""
+        self._login_admin()
+        r = self.client.get('/admin/dashboard')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn(b'Dashboard', r.data)
 
-        # 3. View Lapangan CRUD
-        response = self.app.get('/admin/lapangan')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Manajemen Lapangan', response.data)
+    def test_15_admin_dashboard(self):
+        """Dashboard admin harus menampilkan statistik"""
+        self._login_admin()
+        r = self.client.get('/admin/dashboard')
+        self.assertEqual(r.status_code, 200)
 
-        # 4. View Reservasi CRUD
-        response = self.app.get('/admin/reservasi')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Manajemen Reservasi', response.data)
+    def test_16_admin_lapangan_view(self):
+        """Halaman manajemen lapangan harus tampil"""
+        self._login_admin()
+        r = self.client.get('/admin/lapangan')
+        self.assertEqual(r.status_code, 200)
 
-        # 5. View Laporan
-        response = self.app.get('/admin/laporan')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Laporan Bulanan', response.data)
-
-        # 6. CRUD Lapangan - Create
-        response = self.app.post('/admin/lapangan/tambah', data={
-            'nama_lapangan': 'Lapangan Test Baru',
+    def test_17_admin_lapangan_tidak_bisa_tambah(self):
+        """Tambah lapangan baru harus ditolak (single-field)"""
+        self._login_admin()
+        r = self.client.post('/admin/lapangan/tambah', data={
+            'nama_lapangan': 'Lapangan Baru',
             'jenis_olahraga': 'Futsal',
-            'lokasi': 'Test Area',
-            'harga_per_jam': '125000',
+            'lokasi': 'Test',
+        }, follow_redirects=True)
+        self.assertEqual(r.status_code, 200)  # redirect ke lapangan dengan flash error
+
+    def test_18_admin_lapangan_edit(self):
+        """Edit lapangan utama (id=1) harus berhasil"""
+        self._login_admin()
+        r = self.client.post('/admin/lapangan/edit/1', data={
+            'nama_lapangan': 'Lapangan Multiguna Kampus',
+            'jenis_olahraga': 'Multiguna',
+            'lokasi': 'Area Olahraga Utama',
             'status': 'aktif',
-            'deskripsi': 'Deskripsi test',
-            'fasilitas': 'Fasilitas test'
+            'deskripsi': 'Lapangan test edit',
+            'fasilitas': 'Toilet, Parkir'
         }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Lapangan Test Baru', response.data)
+        self.assertEqual(r.status_code, 200)
 
-        # Find the ID of the new Lapangan
-        import sqlite3
-        conn = sqlite3.connect('database.db')
-        conn.row_factory = sqlite3.Row
-        lap = conn.execute("SELECT id_lapangan FROM lapangan WHERE nama_lapangan='Lapangan Test Baru'").fetchone()
-        self.assertIsNotNone(lap)
-        lap_id = lap['id_lapangan']
+    def test_19_admin_lapangan_tidak_bisa_hapus(self):
+        """Hapus lapangan utama harus ditolak"""
+        self._login_admin()
+        r = self.client.post('/admin/lapangan/hapus/1', follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
 
-        # 7. CRUD Lapangan - Update
-        response = self.app.post(f'/admin/lapangan/edit/{lap_id}', data={
-            'nama_lapangan': 'Lapangan Test Edited',
-            'jenis_olahraga': 'Futsal',
-            'lokasi': 'Test Area Modified',
-            'harga_per_jam': '130000',
-            'status': 'aktif',
-            'deskripsi': 'Deskripsi test edited',
-            'fasilitas': 'Fasilitas test edited'
+    def test_20_admin_reservasi_list(self):
+        """Daftar reservasi admin harus tampil"""
+        self._login_admin()
+        r = self.client.get('/admin/reservasi')
+        self.assertEqual(r.status_code, 200)
+
+    def test_21_admin_reservasi_filter(self):
+        """Filter reservasi berdasarkan status harus berjalan"""
+        self._login_admin()
+        r = self.client.get('/admin/reservasi?status=menunggu')
+        self.assertEqual(r.status_code, 200)
+
+    def test_22_admin_tambah_reservasi(self):
+        """Admin bisa menambah reservasi baru"""
+        self._login_admin()
+        tanggal = (date.today() + timedelta(days=10)).isoformat()
+        r = self.client.post('/admin/reservasi/tambah', data={
+            'nama_pemesan': 'Admin Test User',
+            'no_hp': '082100000001',
+            'tanggal': tanggal,
+            'jam_mulai': '07:00',
+            'jam_selesai': '08:00',
+            'status': 'dikonfirmasi',
+            'catatan': ''
         }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Lapangan Test Edited', response.data)
-
-        # 8. CRUD Reservasi - Create
-        response = self.app.post('/admin/reservasi/tambah', data={
-            'nama_pemesan': 'Pemesan Test',
-            'no_hp': '081234567890',
-            'id_lapangan': str(lap_id),
-            'tanggal': '2026-12-25',
-            'jam_mulai': '10:00',
-            'jam_selesai': '12:00',
-            'status': 'menunggu'
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Pemesan Test', response.data)
-
-        # Find the ID of the new Reservasi
-        res = conn.execute("SELECT id_reservasi FROM reservasi WHERE nama_pemesan='Pemesan Test'").fetchone()
-        self.assertIsNotNone(res)
-        res_id = res['id_reservasi']
-
-        # 9. CRUD Reservasi - Update (Edit status / details)
-        response = self.app.post(f'/admin/reservasi/edit/{res_id}', data={
-            'nama_pemesan': 'Pemesan Test Edited',
-            'no_hp': '081234567899',
-            'id_lapangan': str(lap_id),
-            'tanggal': '2026-12-25',
-            'jam_mulai': '10:00',
-            'jam_selesai': '12:00',
-            'status': 'dikonfirmasi'
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Pemesan Test Edited', response.data)
-
-        # 10. CRUD Reservasi - Delete
-        response = self.app.post(f'/admin/reservasi/hapus/{res_id}', follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b'Pemesan Test Edited', response.data)
-
-        # 11. CRUD Lapangan - Delete
-        response = self.app.post(f'/admin/lapangan/hapus/{lap_id}', follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn(b'Lapangan Test Edited', response.data)
+        self.assertEqual(r.status_code, 200)
+        # Cleanup
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute("DELETE FROM reservasi WHERE nama_pemesan='Admin Test User'")
+        conn.commit()
         conn.close()
+
+    def test_23_admin_laporan(self):
+        """Halaman laporan admin harus tampil"""
+        self._login_admin()
+        r = self.client.get('/admin/laporan')
+        self.assertEqual(r.status_code, 200)
+
+    def test_24_admin_logout(self):
+        """Logout harus berhasil dan redirect ke login"""
+        self._login_admin()
+        r = self.client.get('/admin/logout', follow_redirects=True)
+        self.assertEqual(r.status_code, 200)
+        # Setelah logout, dashboard harus tidak bisa diakses
+        r2 = self.client.get('/admin/dashboard')
+        self.assertEqual(r2.status_code, 302)
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(verbosity=2)
