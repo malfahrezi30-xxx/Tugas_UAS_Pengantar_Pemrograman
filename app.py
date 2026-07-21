@@ -230,7 +230,6 @@ def admin_dashboard():
     today = date.today().isoformat()
 
     stats = {
-        'total_lapangan': db.execute("SELECT COUNT(*) FROM lapangan").fetchone()[0],
         'total_reservasi': db.execute("SELECT COUNT(*) FROM reservasi").fetchone()[0],
         'reservasi_hari_ini': db.execute(
             "SELECT COUNT(*) FROM reservasi WHERE tanggal=?", (today,)
@@ -244,19 +243,7 @@ def admin_dashboard():
         'reservasi_dibatalkan': db.execute(
             "SELECT COUNT(*) FROM reservasi WHERE status='dibatalkan'"
         ).fetchone()[0],
-        'pendapatan_bulan_ini': db.execute(
-            """SELECT COALESCE(SUM(total_harga),0) FROM reservasi
-               WHERE status='dikonfirmasi'
-               AND strftime('%Y-%m', tanggal)=strftime('%Y-%m','now')"""
-        ).fetchone()[0],
     }
-
-    # Lapangan paling sering digunakan
-    top_lapangan = db.execute(
-        """SELECT l.nama_lapangan, l.jenis_olahraga, COUNT(r.id_reservasi) as total
-           FROM lapangan l LEFT JOIN reservasi r ON l.id_lapangan=r.id_lapangan
-           GROUP BY l.id_lapangan ORDER BY total DESC LIMIT 5"""
-    ).fetchall()
 
     # Reservasi 6 bulan terakhir (untuk grafik)
     monthly_data = db.execute(
@@ -273,20 +260,10 @@ def admin_dashboard():
            ORDER BY r.id_reservasi DESC LIMIT 8"""
     ).fetchall()
 
-    # Distribusi per jenis olahraga
-    jenis_data = db.execute(
-        """SELECT l.jenis_olahraga, COUNT(r.id_reservasi) as total
-           FROM lapangan l LEFT JOIN reservasi r ON l.id_lapangan=r.id_lapangan
-           WHERE r.status IN ('menunggu','dikonfirmasi')
-           GROUP BY l.jenis_olahraga ORDER BY total DESC"""
-    ).fetchall()
-
     return render_template('admin/dashboard.html',
                            stats=stats,
-                           top_lapangan=top_lapangan,
                            monthly_data=json.dumps([dict(r) for r in monthly_data]),
-                           recent_reservasi=recent_reservasi,
-                           jenis_data=json.dumps([dict(r) for r in jenis_data]))
+                           recent_reservasi=recent_reservasi)
 
 
 # ─── LAPANGAN CRUD ───────────────────────────────────────────────────────────
@@ -295,82 +272,35 @@ def admin_dashboard():
 @login_required
 def admin_lapangan():
     db = get_db()
-    search = request.args.get('search', '')
-    jenis = request.args.get('jenis', '')
-    query = "SELECT * FROM lapangan WHERE 1=1"
-    params = []
-    if search:
-        query += " AND (nama_lapangan LIKE ? OR lokasi LIKE ?)"
-        params += [f'%{search}%', f'%{search}%']
-    if jenis:
-        query += " AND jenis_olahraga=?"
-        params.append(jenis)
-    query += " ORDER BY jenis_olahraga, nama_lapangan"
-    lapangan = db.execute(query, params).fetchall()
-    jenis_list = ['Futsal', 'Badminton', 'Basket', 'Voli', 'Tenis', 'Renang']
-    return render_template('admin/lapangan.html', lapangan=lapangan,
-                           jenis_list=jenis_list, search=search, jenis_filter=jenis)
+    lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=1").fetchone()
+    return render_template('admin/lapangan.html', lapangan=lapangan)
 
 
 @app.route('/admin/lapangan/tambah', methods=['GET', 'POST'])
 @login_required
 def admin_tambah_lapangan():
-    jenis_list = ['Futsal', 'Badminton', 'Basket', 'Voli', 'Tenis', 'Renang']
-    if request.method == 'POST':
-        nama = request.form.get('nama_lapangan', '').strip()
-        jenis = request.form.get('jenis_olahraga', '')
-        lokasi = request.form.get('lokasi', '').strip()
-        harga = request.form.get('harga_per_jam', '0')
-        status = request.form.get('status', 'aktif')
-        deskripsi = request.form.get('deskripsi', '').strip()
-        fasilitas = request.form.get('fasilitas', '').strip()
-
-        errors = []
-        if not nama:
-            errors.append('Nama lapangan wajib diisi.')
-        if not jenis:
-            errors.append('Jenis olahraga wajib dipilih.')
-        if not lokasi:
-            errors.append('Lokasi wajib diisi.')
-        try:
-            harga = float(harga)
-            if harga <= 0:
-                errors.append('Harga harus lebih dari 0.')
-        except:
-            errors.append('Harga tidak valid.')
-
-        if not errors:
-            db = get_db()
-            db.execute(
-                """INSERT INTO lapangan (nama_lapangan, jenis_olahraga, lokasi, harga_per_jam,
-                   status, deskripsi, fasilitas) VALUES (?,?,?,?,?,?,?)""",
-                (nama, jenis, lokasi, harga, status, deskripsi, fasilitas)
-            )
-            db.commit()
-            flash('✅ Lapangan berhasil ditambahkan!', 'success')
-            return redirect(url_for('admin_lapangan'))
-
-        for err in errors:
-            flash(err, 'danger')
-
-    return render_template('admin/form_lapangan.html', lapangan=None, jenis_list=jenis_list, mode='tambah')
+    flash('❌ Tidak dapat menambahkan lapangan baru. Hanya diperbolehkan satu lapangan.', 'danger')
+    return redirect(url_for('admin_lapangan'))
 
 
 @app.route('/admin/lapangan/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
 def admin_edit_lapangan(id):
+    if id != 1:
+        flash('❌ Hanya dapat mengedit lapangan utama.', 'danger')
+        return redirect(url_for('admin_lapangan'))
+
     db = get_db()
-    lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=?", (id,)).fetchone()
+    lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=1").fetchone()
     if not lapangan:
         flash('Lapangan tidak ditemukan.', 'danger')
         return redirect(url_for('admin_lapangan'))
 
-    jenis_list = ['Futsal', 'Badminton', 'Basket', 'Voli', 'Tenis', 'Renang']
+    jenis_list = ['Multiguna', 'Futsal', 'Badminton', 'Basket', 'Voli', 'Tenis']
     if request.method == 'POST':
         nama = request.form.get('nama_lapangan', '').strip()
         jenis = request.form.get('jenis_olahraga', '')
         lokasi = request.form.get('lokasi', '').strip()
-        harga = request.form.get('harga_per_jam', '0')
         status = request.form.get('status', 'aktif')
         deskripsi = request.form.get('deskripsi', '').strip()
         fasilitas = request.form.get('fasilitas', '').strip()
@@ -379,21 +309,16 @@ def admin_edit_lapangan(id):
         if not nama: errors.append('Nama lapangan wajib diisi.')
         if not jenis: errors.append('Jenis olahraga wajib dipilih.')
         if not lokasi: errors.append('Lokasi wajib diisi.')
-        try:
-            harga = float(harga)
-            if harga <= 0: errors.append('Harga harus lebih dari 0.')
-        except:
-            errors.append('Harga tidak valid.')
 
         if not errors:
             db.execute(
                 """UPDATE lapangan SET nama_lapangan=?, jenis_olahraga=?, lokasi=?,
-                   harga_per_jam=?, status=?, deskripsi=?, fasilitas=?
-                   WHERE id_lapangan=?""",
-                (nama, jenis, lokasi, harga, status, deskripsi, fasilitas, id)
+                   harga_per_jam=0, status=?, deskripsi=?, fasilitas=?
+                   WHERE id_lapangan=1""",
+                (nama, jenis, lokasi, status, deskripsi, fasilitas)
             )
             db.commit()
-            flash('✅ Lapangan berhasil diperbarui!', 'success')
+            flash('✅ Informasi lapangan berhasil diperbarui!', 'success')
             return redirect(url_for('admin_lapangan'))
 
         for err in errors:
@@ -406,18 +331,7 @@ def admin_edit_lapangan(id):
 @app.route('/admin/lapangan/hapus/<int:id>', methods=['POST'])
 @login_required
 def admin_hapus_lapangan(id):
-    db = get_db()
-    # Cek apakah ada reservasi aktif
-    aktif = db.execute(
-        "SELECT COUNT(*) FROM reservasi WHERE id_lapangan=? AND status IN ('menunggu','dikonfirmasi')",
-        (id,)
-    ).fetchone()[0]
-    if aktif > 0:
-        flash('❌ Lapangan tidak dapat dihapus karena masih ada reservasi aktif.', 'danger')
-    else:
-        db.execute("DELETE FROM lapangan WHERE id_lapangan=?", (id,))
-        db.commit()
-        flash('✅ Lapangan berhasil dihapus.', 'success')
+    flash('❌ Lapangan utama kampus tidak dapat dihapus.', 'danger')
     return redirect(url_for('admin_lapangan'))
 
 
@@ -448,10 +362,8 @@ def admin_reservasi():
 
     query += " ORDER BY r.tanggal DESC, r.jam_mulai DESC"
     reservasi = db.execute(query, params).fetchall()
-    lapangan_list = db.execute("SELECT * FROM lapangan WHERE status='aktif'").fetchall()
 
     return render_template('admin/reservasi.html', reservasi=reservasi,
-                           lapangan_list=lapangan_list,
                            status_filter=status_filter,
                            tanggal_filter=tanggal_filter, search=search)
 
@@ -460,21 +372,19 @@ def admin_reservasi():
 @login_required
 def admin_tambah_reservasi():
     db = get_db()
-    lapangan_list = db.execute("SELECT * FROM lapangan WHERE status='aktif'").fetchall()
 
     if request.method == 'POST':
         nama = request.form.get('nama_pemesan', '').strip()
         no_hp = request.form.get('no_hp', '').strip()
-        id_lapangan = request.form.get('id_lapangan', '')
         tanggal = request.form.get('tanggal', '')
         jam_mulai = request.form.get('jam_mulai', '')
         jam_selesai = request.form.get('jam_selesai', '')
         status = request.form.get('status', 'menunggu')
+        catatan = request.form.get('catatan', '').strip()
 
         errors = []
         if not nama: errors.append('Nama pemesan wajib diisi.')
         if not no_hp or len(no_hp) < 10: errors.append('Nomor HP tidak valid.')
-        if not id_lapangan: errors.append('Lapangan wajib dipilih.')
         if not tanggal: errors.append('Tanggal wajib diisi.')
         if not jam_mulai or not jam_selesai: errors.append('Jam mulai dan selesai wajib diisi.')
         if jam_mulai >= jam_selesai: errors.append('Jam selesai harus lebih dari jam mulai.')
@@ -482,25 +392,20 @@ def admin_tambah_reservasi():
         if not errors:
             bentrok = db.execute(
                 """SELECT id_reservasi FROM reservasi
-                   WHERE id_lapangan=? AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
+                   WHERE id_lapangan=1 AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
                    AND NOT (jam_selesai <= ? OR jam_mulai >= ?)""",
-                (id_lapangan, tanggal, jam_mulai, jam_selesai)
+                (tanggal, jam_mulai, jam_selesai)
             ).fetchone()
             if bentrok:
                 flash('❌ Jadwal bentrok dengan reservasi yang sudah ada!', 'danger')
             else:
-                lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=?", (id_lapangan,)).fetchone()
-                h_mulai = int(jam_mulai.replace(':', ''))
-                h_selesai = int(jam_selesai.replace(':', ''))
-                durasi = (h_selesai - h_mulai) / 100
-                total_harga = durasi * lapangan['harga_per_jam']
                 kode_booking = f"RSV{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 db.execute(
                     """INSERT INTO reservasi (nama_pemesan, no_hp, id_lapangan, tanggal,
-                       jam_mulai, jam_selesai, status, kode_booking, total_harga)
-                       VALUES (?,?,?,?,?,?,?,?,?)""",
-                    (nama, no_hp, id_lapangan, tanggal, jam_mulai, jam_selesai,
-                     status, kode_booking, total_harga)
+                       jam_mulai, jam_selesai, status, kode_booking, total_harga, catatan)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (nama, no_hp, 1, tanggal, jam_mulai, jam_selesai,
+                     status, kode_booking, 0, catatan)
                 )
                 db.commit()
                 flash('✅ Reservasi berhasil ditambahkan!', 'success')
@@ -509,8 +414,7 @@ def admin_tambah_reservasi():
         for err in errors:
             flash(err, 'danger')
 
-    return render_template('admin/form_reservasi.html', reservasi=None,
-                           lapangan_list=lapangan_list, mode='tambah',
+    return render_template('admin/form_reservasi.html', reservasi=None, mode='tambah',
                            today=date.today().isoformat())
 
 
@@ -523,48 +427,40 @@ def admin_edit_reservasi(id):
         flash('Reservasi tidak ditemukan.', 'danger')
         return redirect(url_for('admin_reservasi'))
 
-    lapangan_list = db.execute("SELECT * FROM lapangan WHERE status='aktif'").fetchall()
-
     if request.method == 'POST':
         nama = request.form.get('nama_pemesan', '').strip()
         no_hp = request.form.get('no_hp', '').strip()
-        id_lapangan = request.form.get('id_lapangan', '')
         tanggal = request.form.get('tanggal', '')
         jam_mulai = request.form.get('jam_mulai', '')
         jam_selesai = request.form.get('jam_selesai', '')
         status = request.form.get('status', 'menunggu')
+        catatan = request.form.get('catatan', '').strip()
 
-        if not all([nama, no_hp, id_lapangan, tanggal, jam_mulai, jam_selesai]):
+        if not all([nama, no_hp, tanggal, jam_mulai, jam_selesai]):
             flash('Semua field wajib diisi.', 'danger')
         elif jam_mulai >= jam_selesai:
             flash('Jam selesai harus lebih dari jam mulai.', 'danger')
         else:
             bentrok = db.execute(
                 """SELECT id_reservasi FROM reservasi
-                   WHERE id_lapangan=? AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
+                   WHERE id_lapangan=1 AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
                    AND id_reservasi != ?
                    AND NOT (jam_selesai <= ? OR jam_mulai >= ?)""",
-                (id_lapangan, tanggal, id, jam_mulai, jam_selesai)
+                (tanggal, id, jam_mulai, jam_selesai)
             ).fetchone()
             if bentrok:
                 flash('❌ Jadwal bentrok dengan reservasi lain!', 'danger')
             else:
-                lapangan = db.execute("SELECT * FROM lapangan WHERE id_lapangan=?", (id_lapangan,)).fetchone()
-                h_mulai = int(jam_mulai.replace(':', ''))
-                h_selesai = int(jam_selesai.replace(':', ''))
-                durasi = (h_selesai - h_mulai) / 100
-                total_harga = durasi * lapangan['harga_per_jam']
                 db.execute(
-                    """UPDATE reservasi SET nama_pemesan=?, no_hp=?, id_lapangan=?, tanggal=?,
-                       jam_mulai=?, jam_selesai=?, status=?, total_harga=? WHERE id_reservasi=?""",
-                    (nama, no_hp, id_lapangan, tanggal, jam_mulai, jam_selesai, status, total_harga, id)
+                    """UPDATE reservasi SET nama_pemesan=?, no_hp=?, id_lapangan=1, tanggal=?,
+                       jam_mulai=?, jam_selesai=?, status=?, total_harga=0, catatan=? WHERE id_reservasi=?""",
+                    (nama, no_hp, tanggal, jam_mulai, jam_selesai, status, catatan, id)
                 )
                 db.commit()
                 flash('✅ Reservasi berhasil diperbarui!', 'success')
                 return redirect(url_for('admin_reservasi'))
 
-    return render_template('admin/form_reservasi.html', reservasi=reservasi,
-                           lapangan_list=lapangan_list, mode='edit',
+    return render_template('admin/form_reservasi.html', reservasi=reservasi, mode='edit',
                            today=date.today().isoformat())
 
 
@@ -640,21 +536,10 @@ def admin_laporan():
         'menunggu': sum(1 for r in laporan_bulan if r['status'] == 'menunggu'),
         'dibatalkan': sum(1 for r in laporan_bulan if r['status'] == 'dibatalkan'),
         'selesai': sum(1 for r in laporan_bulan if r['status'] == 'selesai'),
-        'pendapatan': sum(r['total_harga'] for r in laporan_bulan if r['status'] in ('dikonfirmasi', 'selesai')),
     }
 
-    per_lapangan = db.execute(
-        """SELECT l.nama_lapangan, l.jenis_olahraga, COUNT(r.id_reservasi) as total,
-           COALESCE(SUM(CASE WHEN r.status IN ('dikonfirmasi','selesai') THEN r.total_harga ELSE 0 END),0) as pendapatan
-           FROM lapangan l LEFT JOIN reservasi r ON l.id_lapangan=r.id_lapangan
-           AND strftime('%Y-%m', r.tanggal)=?
-           GROUP BY l.id_lapangan ORDER BY total DESC""",
-        (bulan,)
-    ).fetchall()
-
     per_hari = db.execute(
-        """SELECT tanggal, COUNT(*) as total,
-           SUM(CASE WHEN status IN ('dikonfirmasi','selesai') THEN total_harga ELSE 0 END) as pendapatan
+        """SELECT tanggal, COUNT(*) as total
            FROM reservasi WHERE strftime('%Y-%m', tanggal)=?
            GROUP BY tanggal ORDER BY tanggal""",
         (bulan,)
@@ -663,7 +548,6 @@ def admin_laporan():
     return render_template('admin/laporan.html',
                            laporan_bulan=laporan_bulan,
                            ringkasan=ringkasan,
-                           per_lapangan=per_lapangan,
                            per_hari=json.dumps([dict(r) for r in per_hari]),
                            bulan=bulan)
 
@@ -673,17 +557,16 @@ def admin_laporan():
 @app.route('/api/cek-jadwal')
 def api_cek_jadwal():
     """API untuk cek ketersediaan jadwal"""
-    id_lapangan = request.args.get('id_lapangan')
     tanggal = request.args.get('tanggal')
-    if not id_lapangan or not tanggal:
+    if not tanggal:
         return jsonify({'error': 'Parameter tidak lengkap'}), 400
 
     db = get_db()
     reservasi = db.execute(
         """SELECT jam_mulai, jam_selesai, status FROM reservasi
-           WHERE id_lapangan=? AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
+           WHERE id_lapangan=1 AND tanggal=? AND status IN ('menunggu','dikonfirmasi')
            ORDER BY jam_mulai""",
-        (id_lapangan, tanggal)
+        (tanggal,)
     ).fetchall()
     return jsonify([dict(r) for r in reservasi])
 
