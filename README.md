@@ -7,20 +7,21 @@ Aplikasi web berbasis **Python + Flask** untuk mengelola reservasi lapangan olah
 ## 📋 Fitur Utama
 
 ### 👥 Sisi Pengguna (User)
-- Beranda dengan info lapangan & statistik
-- Daftar lapangan dengan filter jenis olahraga
-- Detail lapangan + kalender ketersediaan 7 hari
-- Form reservasi dengan cek bentrok otomatis
-- QR Code / kode booking untuk setiap reservasi
+- Beranda dengan info lapangan, jadwal 7 hari ke depan & statistik
+- Kalender slot waktu interaktif (tersedia/terpesan)
+- Form reservasi dengan **cek bentrok otomatis**
+- **QR Code** + kode booking unik untuk setiap reservasi
 - Cek status reservasi via kode booking
+- Field catatan opsional saat reservasi
 
 ### 🔐 Sisi Admin
-- Login dengan autentikasi session
-- Dashboard dengan statistik & grafik
-- CRUD Lapangan (Tambah, Edit, Hapus)
-- CRUD Reservasi (Tambah, Edit, Konfirmasi, Batalkan, Hapus)
-- Laporan per bulan dengan ringkasan pendapatan
+- Login dengan autentikasi session (SHA-256)
+- Dashboard dengan statistik & grafik (Chart.js)
+- **Edit** info lapangan (nama, jenis, lokasi, fasilitas, deskripsi)
+- CRUD Reservasi: Tambah, Edit, Konfirmasi, Batalkan, Hapus
+- Laporan per bulan: ringkasan + grafik reservasi per hari
 - Detail reservasi + QR Code
+- Filter & pencarian reservasi (status, tanggal, nama/kode)
 
 ---
 
@@ -75,36 +76,36 @@ http://localhost:5000
 ```
 Tugas_UAS_Pengantar_Pemrograman/
 │
-├── app.py                  # File utama Flask
-├── database.py             # Koneksi & inisialisasi database
+├── app.py                  # File utama Flask (routes & logic)
+├── database.py             # Koneksi & inisialisasi database SQLite
+├── test_app.py             # Unit tests (24 test cases)
 ├── requirements.txt        # Dependensi Python
 ├── .gitignore
 ├── README.md
 │
 ├── templates/
 │   ├── base.html           # Layout dasar user
-│   ├── index.html          # Beranda
-│   ├── daftar_lapangan.html
-│   ├── detail_lapangan.html
-│   ├── form_reservasi.html
-│   ├── cek_status.html
-│   ├── status_reservasi.html
+│   ├── index.html          # Beranda + kalender jadwal
+│   ├── form_reservasi.html # Form buat reservasi
+│   ├── cek_status.html     # Halaman cek kode booking
+│   ├── status_reservasi.html # Detail + QR Code reservasi
 │   └── admin/
 │       ├── base_admin.html
 │       ├── login.html
-│       ├── dashboard.html
-│       ├── lapangan.html
+│       ├── dashboard.html  # Statistik & grafik
+│       ├── lapangan.html   # Manajemen lapangan
 │       ├── form_lapangan.html
-│       ├── reservasi.html
+│       ├── reservasi.html  # Daftar reservasi
 │       ├── form_reservasi.html
 │       ├── detail_reservasi.html
-│       └── laporan.html
+│       └── laporan.html    # Laporan bulanan
 │
 └── static/
     ├── css/
-    │   └── style.css
+    │   ├── style.css       # Styling halaman user
+    │   └── admin.css       # Styling panel admin
     └── js/
-        └── main.js
+        └── main.js         # JavaScript interaktif
 ```
 
 ---
@@ -130,12 +131,13 @@ Tugas_UAS_Pengantar_Pemrograman/
 | nama_pemesan | TEXT | Nama pemesan |
 | no_hp | TEXT | Nomor HP |
 | id_lapangan | INTEGER FK | Referensi lapangan |
-| tanggal | TEXT | Tanggal reservasi |
-| jam_mulai | TEXT | Jam mulai |
-| jam_selesai | TEXT | Jam selesai |
+| tanggal | TEXT | Tanggal reservasi (YYYY-MM-DD) |
+| jam_mulai | TEXT | Jam mulai (HH:MM) |
+| jam_selesai | TEXT | Jam selesai (HH:MM) |
 | status | TEXT | menunggu/dikonfirmasi/dibatalkan/selesai |
 | kode_booking | TEXT UNIQUE | Kode unik reservasi |
-| total_harga | REAL | Total biaya |
+| total_harga | REAL | Total biaya (0 = gratis) |
+| catatan | TEXT | Catatan opsional dari pemesan |
 
 ---
 
